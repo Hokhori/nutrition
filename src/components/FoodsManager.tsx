@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Pencil, X } from "lucide-react";
+import { Pencil, X, Plus } from "lucide-react";
 import { fmt } from "@/lib/format";
+import { AddFoodDialog } from "./AddFoodDialog";
 
 type Food = {
   id: number;
@@ -37,6 +38,7 @@ export function FoodsManager({ initial }: { initial: Food[] }) {
   const [foods, setFoods] = useState<Food[]>(initial);
   const [query, setQuery] = useState("");
   const [editing, setEditing] = useState<Food | null>(null);
+  const [adding, setAdding] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -50,12 +52,17 @@ export function FoodsManager({ initial }: { initial: Food[] }) {
 
   return (
     <div className="space-y-3">
-      <input
-        className="input"
-        placeholder="Filtrer les aliments…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
+      <div className="flex gap-2">
+        <input
+          className="input"
+          placeholder="Filtrer les aliments…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <button onClick={() => setAdding(true)} className="btn btn-primary shrink-0">
+          <Plus size={16} /> Ajouter
+        </button>
+      </div>
 
       {foods.length === 0 ? (
         <p className="py-8 text-center text-sm text-[color:var(--color-muted)]">
@@ -87,6 +94,16 @@ export function FoodsManager({ initial }: { initial: Food[] }) {
           onSaved={(updated) => {
             setFoods((list) => list.map((x) => (x.id === updated.id ? updated : x)));
             setEditing(null);
+          }}
+        />
+      )}
+
+      {adding && (
+        <AddFoodDialog
+          onClose={() => setAdding(false)}
+          onCreated={(food) => {
+            setFoods((list) => [food as Food, ...list.filter((x) => x.id !== food.id)]);
+            setAdding(false);
           }}
         />
       )}
