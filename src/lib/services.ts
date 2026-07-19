@@ -248,20 +248,29 @@ export async function computeTargets(): Promise<{
   target: CalorieTarget;
   macros: MacroTargets;
   currentWeightKg: number | null;
+  sedentaryKcal: number | null;
 }> {
   const s = await getSettings();
   const lw = await latestWeight();
   const weightKg = lw?.weightKg ?? null;
 
-  const target = computeCalorieTarget({
+  const baseInput = {
     sex: (s.sex as "m" | "f" | null) ?? null,
     age: currentAge(s.birthYear),
     heightCm: s.heightCm,
     weightKg,
-    activityLevel: s.activityLevel as ActivityLevel,
     weeklyRateKg: s.weeklyRateKg,
     manualKcalTarget: s.manualKcalTarget,
+  };
+
+  const target = computeCalorieTarget({
+    ...baseInput,
+    activityLevel: s.activityLevel as ActivityLevel,
   });
+
+  // Cap pour une journée sédentaire (aucune activité) : facteur d'activité 1.2,
+  // même déficit. Utile les jours où on ne bouge pas.
+  const sedentary = computeCalorieTarget({ ...baseInput, activityLevel: "sedentary" });
 
   const macros = macroTargets({
     kcalTarget: target.target,
@@ -269,7 +278,7 @@ export async function computeTargets(): Promise<{
     proteinTargetG: s.proteinTargetG,
   });
 
-  return { target, macros, currentWeightKg: weightKg };
+  return { target, macros, currentWeightKg: weightKg, sedentaryKcal: sedentary.target };
 }
 
 // --- Résumé journalier ----------------------------------------------------
@@ -281,6 +290,7 @@ export type DailySummary = {
   target: CalorieTarget;
   macros: MacroTargets;
   remainingKcal: number | null;
+  sedentaryKcal: number | null;
 };
 
 export async function getDailySummary(dateInput?: string | null): Promise<DailySummary> {
@@ -302,6 +312,7 @@ export async function getDailySummary(dateInput?: string | null): Promise<DailyS
     target: targets.target,
     macros: targets.macros,
     remainingKcal,
+    sedentaryKcal: targets.sedentaryKcal,
   };
 }
 
