@@ -1,0 +1,20 @@
+name: nutrition-dev
+
+# Postgres local pour le développement.
+#   docker compose -f docker-compose.dev.yml up -d
+#   DATABASE_URL=postgres://nutrition:nutrition@localhost:5432/nutrition pnpm db:migrate
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nutrition
+      POSTGRES_PASSWORD: nutrition
+      POSTGRES_DB: nutrition
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - dev_db:/var/lib/postgresql/data
+
+volumes:
+  dev_db:
