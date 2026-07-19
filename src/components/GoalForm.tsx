@@ -149,6 +149,10 @@ export function GoalForm({
               </option>
             ))}
           </select>
+          <span className="mt-1 block text-xs text-[color:var(--color-muted)]">
+            💡 Avec l’onglet Activité, garde « Sédentaire » : ta base part d’une journée sans
+            rien, et tu ajoutes tes pas + sport pour un cap qui colle au jour (sinon double comptage).
+          </span>
         </label>
 
         <div className="grid grid-cols-2 gap-3">

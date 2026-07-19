@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Trash2, Plus, Flame } from "lucide-react";
-import { ACTIVITY_PRESETS, activityKcal } from "@/lib/activities";
+import { ACTIVITY_PRESETS, activityKcal, stepsKcal } from "@/lib/activities";
 import { fmt } from "@/lib/format";
 
 type Activity = {
@@ -30,9 +30,10 @@ export function ActivityPanel({
   effectiveTargetKcal: number | null;
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"preset" | "manual">("preset");
+  const [mode, setMode] = useState<"preset" | "steps" | "manual">("preset");
   const [presetKey, setPresetKey] = useState(ACTIVITY_PRESETS[0].key);
   const [duration, setDuration] = useState("");
+  const [steps, setSteps] = useState("");
   const [manualName, setManualName] = useState("");
   const [manualKcal, setManualKcal] = useState("");
   const [saving, setSaving] = useState(false);
@@ -42,6 +43,9 @@ export function ActivityPanel({
   const durMin = num(duration);
   const preview =
     currentWeightKg && durMin > 0 ? activityKcal(preset.met, currentWeightKg, durMin) : null;
+  const nSteps = num(steps);
+  const stepsPreview =
+    currentWeightKg && nSteps > 0 ? stepsKcal(nSteps, currentWeightKg) : null;
 
   async function add() {
     let body: Record<string, unknown>;
@@ -55,6 +59,16 @@ export function ActivityPanel({
         return;
       }
       body = { name: preset.label, met: preset.met, durationMin: durMin };
+    } else if (mode === "steps") {
+      if (!currentWeightKg) {
+        toast.error("Logue ton poids (page Objectif) pour convertir les pas.");
+        return;
+      }
+      if (nSteps <= 0) {
+        toast.error("Indique le nombre de pas");
+        return;
+      }
+      body = { name: `Marche — ${fmt(nSteps)} pas`, kcal: stepsKcal(nSteps, currentWeightKg) };
     } else {
       const k = num(manualKcal);
       if (!manualName.trim() || k <= 0) {
@@ -73,6 +87,7 @@ export function ActivityPanel({
       if (!res.ok) throw new Error();
       toast.success("Activité ajoutée");
       setDuration("");
+      setSteps("");
       setManualName("");
       setManualKcal("");
       router.refresh();
@@ -123,16 +138,22 @@ export function ActivityPanel({
 
       {/* Formulaire d'ajout */}
       <div className="card space-y-3 p-4">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => setMode("preset")}
-            className={`btn ${mode === "preset" ? "btn-primary" : "btn-ghost"}`}
+            className={`btn ${mode === "preset" ? "btn-primary" : "btn-ghost"} px-2 text-sm`}
           >
-            Sport (auto)
+            Sport
+          </button>
+          <button
+            onClick={() => setMode("steps")}
+            className={`btn ${mode === "steps" ? "btn-primary" : "btn-ghost"} px-2 text-sm`}
+          >
+            Pas
           </button>
           <button
             onClick={() => setMode("manual")}
-            className={`btn ${mode === "manual" ? "btn-primary" : "btn-ghost"}`}
+            className={`btn ${mode === "manual" ? "btn-primary" : "btn-ghost"} px-2 text-sm`}
           >
             kcal manuel
           </button>
@@ -163,6 +184,31 @@ export function ActivityPanel({
             <div className="flex items-center justify-between">
               <span className="text-sm text-[color:var(--color-muted)]">
                 {preview !== null ? `≈ ${fmt(preview)} kcal` : currentWeightKg ? "—" : "Poids requis pour le calcul"}
+              </span>
+              <button onClick={add} disabled={saving} className="btn btn-primary">
+                <Plus size={16} /> {saving ? "…" : "Ajouter"}
+              </button>
+            </div>
+          </>
+        ) : mode === "steps" ? (
+          <>
+            <label className="block">
+              <span className="mb-1 block text-xs text-[color:var(--color-muted)]">Nombre de pas</span>
+              <input
+                className="input"
+                inputMode="numeric"
+                value={steps}
+                onChange={(e) => setSteps(e.target.value)}
+                placeholder="ex. 10000"
+              />
+            </label>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-[color:var(--color-muted)]">
+                {stepsPreview !== null
+                  ? `≈ ${fmt(stepsPreview)} kcal`
+                  : currentWeightKg
+                    ? "—"
+                    : "Poids requis pour le calcul"}
               </span>
               <button onClick={add} disabled={saving} className="btn btn-primary">
                 <Plus size={16} /> {saving ? "…" : "Ajouter"}

@@ -30,3 +30,11 @@ export const ACTIVITY_PRESETS: ActivityPreset[] = [
 export function activityKcal(met: number, weightKg: number, minutes: number): number {
   return Math.round(met * weightKg * (minutes / 60));
 }
+
+/**
+ * kcal brûlées par la marche quotidienne (nombre de pas).
+ * Approximation : ~0,0005 kcal par pas et par kg (≈ 460 kcal / 10 000 pas à 92 kg).
+ */
+export function stepsKcal(steps: number, weightKg: number): number {
+  return Math.round(steps * weightKg * 0.0005);
+}
