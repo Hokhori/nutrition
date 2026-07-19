@@ -1,8 +1,8 @@
 import "server-only";
 import { asc, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
-import { foods, entries, settings, weightLog } from "@/db/schema";
-import type { Food } from "@/db/schema";
+import { foods, entries, settings, weightLog, activities } from "@/db/schema";
+import type { Food, Activity } from "@/db/schema";
 import {
   type Nutrients,
   type Per100,
@@ -18,12 +18,14 @@ import {
   type MacroTargets,
 } from "./nutrition";
 import { resolveDate, todayISO, addDaysISO, daysBetweenISO } from "./date";
+import { activityKcal } from "./activities";
 import type {
   CreateFoodInput,
   UpdateFoodInput,
   LogFoodInput,
   SetGoalInput,
   LogWeightInput,
+  LogActivityInput,
 } from "./validation";
 
 // --- Aliments -------------------------------------------------------------
@@ -236,6 +238,54 @@ export async function weightSeries(limit = 180) {
   return rows;
 }
 
+// --- Activité physique ----------------------------------------------------
+
+export async function addActivity(input: LogActivityInput): Promise<Activity> {
+  const date = resolveDate(input.date);
+  let kcal = input.kcal;
+  let met = input.met ?? null;
+  if (kcal === undefined) {
+    // Calcul via MET + durée + dernier poids connu.
+    const lw = await latestWeight();
+    if (!lw) {
+      throw new ServiceError(
+        "Aucun poids enregistré : fournis les kcal directement ou logue ton poids.",
+        "no_weight",
+      );
+    }
+    if (input.met === undefined || input.durationMin === undefined) {
+      throw new ServiceError("Fournir kcal, ou met + durée.", "bad_input");
+    }
+    kcal = activityKcal(input.met, lw.weightKg, input.durationMin);
+    met = input.met;
+  }
+  const [row] = await db
+    .insert(activities)
+    .values({
+      performedOn: date,
+      name: input.name,
+      durationMin: input.durationMin ?? null,
+      kcal,
+      met,
+    })
+    .returning();
+  return row;
+}
+
+export async function listActivities(dateInput?: string | null): Promise<Activity[]> {
+  const date = resolveDate(dateInput);
+  return db
+    .select()
+    .from(activities)
+    .where(eq(activities.performedOn, date))
+    .orderBy(asc(activities.createdAt));
+}
+
+export async function deleteActivity(id: number): Promise<boolean> {
+  const rows = await db.delete(activities).where(eq(activities.id, id)).returning({ id: activities.id });
+  return rows.length > 0;
+}
+
 // --- Calcul du cap + cibles ----------------------------------------------
 
 function currentAge(birthYear: number | null): number | null {
@@ -291,11 +341,18 @@ export type DailySummary = {
   macros: MacroTargets;
   remainingKcal: number | null;
   sedentaryKcal: number | null;
+  activityKcal: number; // kcal brûlées via sport logué ce jour
+  effectiveTargetKcal: number | null; // cap base + activité
+  activities: Activity[];
 };
 
 export async function getDailySummary(dateInput?: string | null): Promise<DailySummary> {
   const date = resolveDate(dateInput);
-  const [entryViews, targets] = await Promise.all([listEntries(date), computeTargets()]);
+  const [entryViews, targets, dayActivities] = await Promise.all([
+    listEntries(date),
+    computeTargets(),
+    listActivities(date),
+  ]);
 
   const totalsRaw = entryViews.reduce<Nutrients>(
     (acc, e) => addNutrients(acc, e.nutrients),
@@ -303,7 +360,10 @@ export async function getDailySummary(dateInput?: string | null): Promise<DailyS
   );
   const totals = roundNutrients(totalsRaw);
 
-  const remainingKcal = targets.target.target !== null ? targets.target.target - totals.kcal : null;
+  const activityKcalTotal = Math.round(dayActivities.reduce((acc, a) => acc + a.kcal, 0));
+  const baseTarget = targets.target.target;
+  const effectiveTargetKcal = baseTarget !== null ? baseTarget + activityKcalTotal : null;
+  const remainingKcal = effectiveTargetKcal !== null ? effectiveTargetKcal - totals.kcal : null;
 
   return {
     date,
@@ -313,6 +373,9 @@ export async function getDailySummary(dateInput?: string | null): Promise<DailyS
     macros: targets.macros,
     remainingKcal,
     sedentaryKcal: targets.sedentaryKcal,
+    activityKcal: activityKcalTotal,
+    effectiveTargetKcal,
+    activities: dayActivities,
   };
 }
 

@@ -246,4 +246,50 @@ export function registerTools(server: McpServer): void {
         return ok(p, line);
       }),
   );
+
+  // 12. Logger une activité physique
+  server.tool(
+    "log_activity",
+    "Enregistre une séance de sport (rehausse le cap calorique du jour). Fournir kcal brûlées directement, OU met + durationMin (calcul via le poids). date optionnelle (défaut aujourd'hui). Ex MET : marche 3.5, course 9, vélo 7.5, muscu 5, HIIT 8, natation 6.",
+    {
+      name: z.string().min(1),
+      durationMin: z.number().positive().max(1440).optional(),
+      kcal: z.number().positive().max(10000).optional(),
+      met: z.number().positive().max(25).optional(),
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    },
+    async (args) =>
+      guard(async () => {
+        if (args.kcal === undefined && (args.met === undefined || args.durationMin === undefined)) {
+          return fail("Fournir kcal, ou met + durationMin.");
+        }
+        const a = await svc.addActivity(args);
+        return ok(a, `Activité enregistrée : ${a.name} — ${a.kcal} kcal brûlées.`);
+      }),
+  );
+
+  // 13. Lister les activités d'un jour
+  server.tool(
+    "list_activities",
+    "Liste les activités physiques d'un jour (défaut aujourd'hui).",
+    { date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() },
+    async (args) =>
+      guard(async () => {
+        const rows = await svc.listActivities(args.date);
+        const total = rows.reduce((s, a) => s + a.kcal, 0);
+        return ok(rows, `${rows.length} activité(s), ${Math.round(total)} kcal brûlées.`);
+      }),
+  );
+
+  // 14. Supprimer une activité
+  server.tool(
+    "delete_activity",
+    "Supprime une activité physique par son id.",
+    { id: z.number().int().positive() },
+    async (args) =>
+      guard(async () => {
+        const okDel = await svc.deleteActivity(args.id);
+        return okDel ? ok({ deleted: true }, `Activité #${args.id} supprimée.`) : fail(`Activité #${args.id} introuvable.`);
+      }),
+  );
 }

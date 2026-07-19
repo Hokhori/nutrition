@@ -83,6 +83,19 @@ export const logWeightSchema = z.object({
 });
 export type LogWeightInput = z.infer<typeof logWeightSchema>;
 
+export const logActivitySchema = z
+  .object({
+    name: z.string().min(1).max(120),
+    durationMin: z.number().positive().max(1440).optional(),
+    kcal: z.number().positive().max(10000).optional(),
+    met: z.number().positive().max(25).optional(),
+    date: isoDate.optional(),
+  })
+  .refine((v) => v.kcal !== undefined || (v.met !== undefined && v.durationMin !== undefined), {
+    message: "Fournir kcal, ou met + durationMin (pour calcul via le poids).",
+  });
+export type LogActivityInput = z.infer<typeof logActivitySchema>;
+
 export const searchFoodsSchema = z.object({
   query: z.string().min(1).max(120),
   limit: z.number().int().min(1).max(50).optional(),

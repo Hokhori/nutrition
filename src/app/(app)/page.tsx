@@ -24,7 +24,9 @@ export default async function DashboardPage({
     summary.sedentaryKcal !== null &&
     target.target !== null &&
     !target.manual &&
-    summary.sedentaryKcal !== target.target;
+    summary.sedentaryKcal !== target.target &&
+    summary.activityKcal === 0;
+  const showActivity = summary.activityKcal > 0 && target.target !== null;
 
   return (
     <div className="space-y-5">
@@ -50,7 +52,7 @@ export default async function DashboardPage({
       {/* Anneau calorique + macros */}
       <div className="card p-5">
         <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center">
-          <KcalRing consumed={totals.kcal} target={target.target} />
+          <KcalRing consumed={totals.kcal} target={summary.effectiveTargetKcal} />
           <div className="w-full flex-1 space-y-2.5">
             <MacroBar label="Protéines" value={totals.proteinG} target={macros.proteinG} />
             <MacroBar label="Glucides" value={totals.carbsG} target={macros.carbsG} />
@@ -61,6 +63,14 @@ export default async function DashboardPage({
             <MacroBar label="Sel" value={totals.saltG} target={macros.saltMaxG} kind="limit" />
           </div>
         </div>
+        {showActivity && (
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 border-t border-[color:var(--color-border)] pt-3 text-sm text-[color:var(--color-muted)]">
+            <span>🔥 +{fmt(summary.activityKcal)} kcal sport → cap ajusté</span>
+            <span className="font-semibold text-[color:var(--color-fg)]">
+              {fmt(summary.effectiveTargetKcal)} kcal
+            </span>
+          </div>
+        )}
         {showSedentary && (
           <div className="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 border-t border-[color:var(--color-border)] pt-3 text-sm text-[color:var(--color-muted)]">
             <span>🛋️ Journée sédentaire (sans activité) :</span>

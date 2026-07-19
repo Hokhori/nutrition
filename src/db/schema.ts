@@ -74,9 +74,24 @@ export const weightLog = pgTable("weight_log", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Séances d'activité physique additionnelles. Les kcal brûlées d'un jour
+ * rehaussent le cap calorique effectif de ce jour.
+ */
+export const activities = pgTable("activities", {
+  id: serial("id").primaryKey(),
+  performedOn: date("performed_on").notNull(),
+  name: text("name").notNull(),
+  durationMin: real("duration_min"),
+  kcal: real("kcal").notNull(),
+  met: real("met"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Food = typeof foods.$inferSelect;
 export type NewFood = typeof foods.$inferInsert;
 export type Entry = typeof entries.$inferSelect;
 export type NewEntry = typeof entries.$inferInsert;
 export type Settings = typeof settings.$inferSelect;
 export type WeightEntry = typeof weightLog.$inferSelect;
+export type Activity = typeof activities.$inferSelect;

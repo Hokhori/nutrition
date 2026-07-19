@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Apple, Target, TrendingUp } from "lucide-react";
+import { Home, Apple, Dumbbell, Target, TrendingUp } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
 
 const links = [
   { href: "/", label: "Jour", icon: Home },
   { href: "/foods", label: "Aliments", icon: Apple },
+  { href: "/activity", label: "Activité", icon: Dumbbell },
   { href: "/goal", label: "Objectif", icon: Target },
   { href: "/progress", label: "Progrès", icon: TrendingUp },
 ];
