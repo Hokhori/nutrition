@@ -39,11 +39,11 @@ export async function isAuthenticated(): Promise<boolean> {
   return session.authenticated === true;
 }
 
-/** Vérifie un mot de passe contre WEB_PASSWORD_HASH (format scrypt$salt$hash). */
+/** Vérifie un mot de passe contre WEB_PASSWORD_HASH (format scrypt:salt:hash). */
 export function verifyWebPassword(input: string): boolean {
   const stored = process.env.WEB_PASSWORD_HASH;
   if (!stored) return false;
-  const parts = stored.split("$");
+  const parts = stored.split(":");
   if (parts.length !== 3 || parts[0] !== "scrypt") return false;
   const [, salt, hashHex] = parts;
   const expected = Buffer.from(hashHex, "hex");
