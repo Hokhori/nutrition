@@ -29,10 +29,12 @@ function real(): DB {
       prepare: false,
     });
   const instance = drizzle(client, { schema });
-  if (process.env.NODE_ENV !== "production") {
-    globalForDb._pg = client;
-    globalForDb._db = instance;
-  }
+  // Toujours mettre en cache le singleton : un seul pool de connexions par
+  // process (en dev le cache sur globalThis survit aussi au hot-reload).
+  // NE PAS conditionner à NODE_ENV, sinon la prod recrée un client (et un pool)
+  // à chaque accès → "too many clients already".
+  globalForDb._pg = client;
+  globalForDb._db = instance;
   return instance;
 }
 
