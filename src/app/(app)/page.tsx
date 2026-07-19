@@ -20,13 +20,19 @@ export default async function DashboardPage({
   const today = todayISO();
   const summary = await getDailySummary(date);
   const { totals, macros, target } = summary;
+  const min = summary.minKcal;
+  const cap = summary.effectiveTargetKcal;
+  const showZone = min !== null && cap !== null;
+  const capAboveFloor = min !== null && cap !== null && cap > min;
+  const showActivity = summary.activityKcal > 0 && target.target !== null;
   const showSedentary =
     summary.sedentaryKcal !== null &&
     target.target !== null &&
     !target.manual &&
     summary.sedentaryKcal !== target.target &&
-    summary.activityKcal === 0;
-  const showActivity = summary.activityKcal > 0 && target.target !== null;
+    summary.activityKcal === 0 &&
+    // On masque le repère sédentaire s'il passe sous le plancher (non conseillé).
+    (min === null || summary.sedentaryKcal >= min);
 
   return (
     <div className="space-y-5">
@@ -63,8 +69,29 @@ export default async function DashboardPage({
             <MacroBar label="Sel" value={totals.saltG} target={macros.saltMaxG} kind="limit" />
           </div>
         </div>
+        {showZone && (
+          <div className="mt-4 flex flex-col items-center gap-0.5 border-t border-[color:var(--color-border)] pt-3 text-sm">
+            {capAboveFloor ? (
+              <div className="flex flex-wrap items-center justify-center gap-x-2 text-[color:var(--color-muted)]">
+                <span>🎯 Zone conseillée</span>
+                <span className="font-semibold text-[color:var(--color-fg)]">
+                  {fmt(min)} – {fmt(cap)} kcal
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-center gap-x-2 text-[color:var(--color-muted)]">
+                <span>🔻 Vise au moins</span>
+                <span className="font-semibold text-[color:var(--color-fg)]">{fmt(min)} kcal</span>
+                <span>aujourd’hui (plancher métabolique)</span>
+              </div>
+            )}
+            <div className="text-xs text-[color:var(--color-muted)]">
+              Sous {fmt(min)} kcal (métabolisme de base) durablement = risque d’effet inverse
+            </div>
+          </div>
+        )}
         {showActivity && (
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 border-t border-[color:var(--color-border)] pt-3 text-sm text-[color:var(--color-muted)]">
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 pt-1 text-sm text-[color:var(--color-muted)]">
             <span>🔥 +{fmt(summary.activityKcal)} kcal sport → cap ajusté</span>
             <span className="font-semibold text-[color:var(--color-fg)]">
               {fmt(summary.effectiveTargetKcal)} kcal

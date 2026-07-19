@@ -14,6 +14,7 @@ import {
   computeCalorieTarget,
   macroTargets,
   estimateGoalDate,
+  bmrMifflinStJeor,
   type CalorieTarget,
   type MacroTargets,
 } from "./nutrition";
@@ -299,19 +300,34 @@ export async function computeTargets(): Promise<{
   macros: MacroTargets;
   currentWeightKg: number | null;
   sedentaryKcal: number | null;
+  minKcal: number | null;
 }> {
   const s = await getSettings();
   const lw = await latestWeight();
   const weightKg = lw?.weightKg ?? null;
+  const age = currentAge(s.birthYear);
 
   const baseInput = {
     sex: (s.sex as "m" | "f" | null) ?? null,
-    age: currentAge(s.birthYear),
+    age,
     heightCm: s.heightCm,
     weightKg,
     weeklyRateKg: s.weeklyRateKg,
     manualKcalTarget: s.manualKcalTarget,
   };
+
+  // Plancher = métabolisme de base (BMR). En dessous durablement = effet inverse.
+  const minKcal =
+    s.sex && age && s.heightCm && weightKg
+      ? Math.round(
+          bmrMifflinStJeor({
+            sex: s.sex as "m" | "f",
+            age,
+            heightCm: s.heightCm,
+            weightKg,
+          }),
+        )
+      : null;
 
   const target = computeCalorieTarget({
     ...baseInput,
@@ -328,7 +344,7 @@ export async function computeTargets(): Promise<{
     proteinTargetG: s.proteinTargetG,
   });
 
-  return { target, macros, currentWeightKg: weightKg, sedentaryKcal: sedentary.target };
+  return { target, macros, currentWeightKg: weightKg, sedentaryKcal: sedentary.target, minKcal };
 }
 
 // --- Résumé journalier ----------------------------------------------------
@@ -344,6 +360,7 @@ export type DailySummary = {
   activityKcal: number; // kcal brûlées via sport logué ce jour
   effectiveTargetKcal: number | null; // cap base + activité
   activities: Activity[];
+  minKcal: number | null; // plancher (BMR) à ne pas franchir durablement
 };
 
 export async function getDailySummary(dateInput?: string | null): Promise<DailySummary> {
@@ -376,6 +393,7 @@ export async function getDailySummary(dateInput?: string | null): Promise<DailyS
     activityKcal: activityKcalTotal,
     effectiveTargetKcal,
     activities: dayActivities,
+    minKcal: targets.minKcal,
   };
 }
 
