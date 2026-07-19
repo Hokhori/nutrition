@@ -12,7 +12,8 @@ import {
   Tooltip,
   ReferenceLine,
 } from "recharts";
-import { fmt } from "@/lib/format";
+import { CalendarClock } from "lucide-react";
+import { fmt, frDate } from "@/lib/format";
 
 type Progress = {
   currentWeightKg: number | null;
@@ -23,7 +24,21 @@ type Progress = {
   etaISO: string | null;
   calorieTarget: { target: number | null };
   series: { loggedOn: string; weightKg: number }[];
+  lastWeighInISO: string | null;
+  nextWeighInISO: string | null;
+  daysUntilNextWeighIn: number | null;
 };
+
+function nextWeighIn(p: Progress): { date: string; rel: string; tone: string } {
+  if (!p.nextWeighInISO || p.daysUntilNextWeighIn === null) {
+    return { date: "—", rel: "Pèse-toi pour démarrer le suivi", tone: "var(--color-muted)" };
+  }
+  const d = p.daysUntilNextWeighIn;
+  if (d < 0) return { date: frDate(p.nextWeighInISO), rel: `en retard de ${-d} j`, tone: "var(--color-warn)" };
+  if (d === 0) return { date: "Aujourd’hui", rel: "c’est le jour de pesée !", tone: "var(--color-brand)" };
+  if (d === 1) return { date: frDate(p.nextWeighInISO), rel: "demain", tone: "var(--color-fg)" };
+  return { date: frDate(p.nextWeighInISO), rel: `dans ${d} jours`, tone: "var(--color-fg)" };
+}
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -64,6 +79,7 @@ export function WeightPanel({ progress }: { progress: Progress }) {
   }
 
   const data = progress.series.map((p) => ({ date: p.loggedOn.slice(5), weight: p.weightKg }));
+  const nw = nextWeighIn(progress);
 
   return (
     <div className="space-y-4">
@@ -79,6 +95,23 @@ export function WeightPanel({ progress }: { progress: Progress }) {
           <span className="text-[color:var(--color-fg)]">{progress.etaISO}</span> (~{progress.weeksRemaining} sem)
         </p>
       )}
+
+      {/* Prochaine pesée */}
+      <div className="card flex items-center justify-between p-4">
+        <div className="flex items-center gap-2.5">
+          <CalendarClock size={20} className="text-[color:var(--color-muted)]" />
+          <div>
+            <div className="font-medium">Prochaine pesée</div>
+            <div className="text-xs text-[color:var(--color-muted)]">Rythme hebdomadaire, à jeun le matin</div>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="font-semibold capitalize" style={{ color: nw.tone }}>
+            {nw.date}
+          </div>
+          <div className="text-xs text-[color:var(--color-muted)]">{nw.rel}</div>
+        </div>
+      </div>
 
       {/* Ajout de pesée */}
       <div className="card flex items-end gap-2 p-3">

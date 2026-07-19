@@ -17,7 +17,7 @@ import {
   type CalorieTarget,
   type MacroTargets,
 } from "./nutrition";
-import { resolveDate, todayISO } from "./date";
+import { resolveDate, todayISO, addDaysISO, daysBetweenISO } from "./date";
 import type {
   CreateFoodInput,
   UpdateFoodInput,
@@ -305,6 +305,9 @@ export async function getDailySummary(dateInput?: string | null): Promise<DailyS
   };
 }
 
+/** Cadence de pesée recommandée (hebdomadaire). */
+export const WEIGH_IN_INTERVAL_DAYS = 7;
+
 export type Progress = {
   currentWeightKg: number | null;
   targetWeightKg: number | null;
@@ -314,6 +317,9 @@ export type Progress = {
   etaISO: string | null;
   calorieTarget: CalorieTarget;
   series: { loggedOn: string; weightKg: number }[];
+  lastWeighInISO: string | null;
+  nextWeighInISO: string | null;
+  daysUntilNextWeighIn: number | null;
 };
 
 export async function getProgress(): Promise<Progress> {
@@ -330,6 +336,10 @@ export async function getProgress(): Promise<Progress> {
     fromISODate: todayISO(),
   });
 
+  const lastWeighInISO = lw?.loggedOn ?? null;
+  const nextWeighInISO = lastWeighInISO ? addDaysISO(lastWeighInISO, WEIGH_IN_INTERVAL_DAYS) : null;
+  const daysUntilNextWeighIn = nextWeighInISO ? daysBetweenISO(todayISO(), nextWeighInISO) : null;
+
   return {
     currentWeightKg: lw?.weightKg ?? null,
     targetWeightKg: s.targetWeightKg,
@@ -339,6 +349,9 @@ export async function getProgress(): Promise<Progress> {
     etaISO: eta.etaISO,
     calorieTarget: targets.target,
     series,
+    lastWeighInISO,
+    nextWeighInISO,
+    daysUntilNextWeighIn,
   };
 }
 

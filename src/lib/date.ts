@@ -31,3 +31,10 @@ export function addDaysISO(iso: string, n: number): string {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
+
+/** Nombre de jours entre deux dates ISO (toISO - fromISO). */
+export function daysBetweenISO(fromISO: string, toISO: string): number {
+  const a = new Date(fromISO + "T00:00:00Z").getTime();
+  const b = new Date(toISO + "T00:00:00Z").getTime();
+  return Math.round((b - a) / 86_400_000);
+}
