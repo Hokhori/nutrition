@@ -25,3 +25,6 @@ pnpm-debug.log*
 
 # typescript
 *.tsbuildinfo
+
+# Toolkit local (installé par le hook SessionStart)
+.claude/

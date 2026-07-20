@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Apple, Dumbbell, Target, TrendingUp, User, Shield } from "lucide-react";
+import { Home, Apple, Dumbbell, Target, TrendingUp, User, Shield, Sparkles } from "lucide-react";
 
 const links = [
   { href: "/", label: "Jour", icon: Home },
@@ -42,6 +42,17 @@ export function NavBar({ isAdmin }: { isAdmin?: boolean }) {
             })}
           </nav>
           <div className="flex items-center gap-1">
+            <Link
+              href="/assistant"
+              className={`rounded-lg p-2 ${
+                pathname === "/assistant"
+                  ? "text-[color:var(--color-brand)]"
+                  : "text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)]"
+              }`}
+              aria-label="Assistant"
+            >
+              <Sparkles size={18} />
+            </Link>
             {isAdmin && (
               <Link
                 href="/admin"
