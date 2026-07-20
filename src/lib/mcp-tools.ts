@@ -54,7 +54,7 @@ const per100Shape = {
   proteinG: z.number().min(0).default(0).describe("protéines (g) pour 100 g"),
   carbsG: z.number().min(0).default(0).describe("glucides (g) pour 100 g"),
   sugarsG: z.number().min(0).default(0).describe("dont sucres totaux (g) pour 100 g"),
-  addedSugarsG: z.number().min(0).default(0).describe("dont sucres AJOUTÉS (g) pour 100 g ; 0 pour un fruit/aliment sans sucre ajouté"),
+  addedSugarsG: z.number().min(0).default(0).describe("dont sucres AJOUTÉS (g) pour 100 g. Produit transformé/sucré (gaufre, biscuit, soda, bonbon, pâtisserie, céréales, chocolat, glace, yaourt sucré…) → quasi tout le sucre est ajouté : mets ≈ sugarsG. 0 uniquement pour fruits entiers, légumes, lait/yaourt nature."),
   fatG: z.number().min(0).default(0).describe("lipides (g) pour 100 g"),
   saturatedG: z.number().min(0).default(0).describe("dont saturés (g) pour 100 g"),
   fiberG: z.number().min(0).default(0).describe("fibres (g) pour 100 g"),

@@ -48,7 +48,7 @@ export function buildTools(userId: number) {
     betaTool({
       name: "create_food",
       description:
-        "Crée un profil d'aliment (macros pour 100 g). Utilise OpenFoodFacts si dispo, sinon tes meilleures estimations. Mets 0 pour les macros inconnues.",
+        "Crée un profil d'aliment (macros pour 100 g). Utilise OpenFoodFacts si dispo, sinon tes meilleures estimations. Mets 0 pour les macros inconnues. addedSugarsG : pour un produit transformé/sucré (gaufre, biscuit, soda, bonbon, pâtisserie, céréales, chocolat, glace, yaourt sucré…) les sucres sont quasi tous AJOUTÉS → mets ≈ sugarsG ; 0 seulement pour fruits entiers, légumes, lait/yaourt nature.",
       inputSchema: {
         type: "object",
         properties: {
@@ -58,7 +58,7 @@ export function buildTools(userId: number) {
           proteinG: nn,
           carbsG: nn,
           sugarsG: nn,
-          addedSugarsG: nn,
+          addedSugarsG: { type: "number", minimum: 0, description: "dont sucres ajoutés (g/100g) ; ≈ sugarsG pour un produit sucré/transformé, 0 pour fruit/légume/laitage nature" },
           fatG: nn,
           saturatedG: nn,
           fiberG: nn,
