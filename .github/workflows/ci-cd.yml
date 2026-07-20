@@ -63,11 +63,11 @@ jobs:
         run: |
           rsync -a --delete \
             --exclude '.git' --exclude 'node_modules' --exclude '.next' \
-            "$GITHUB_WORKSPACE/" /home/administrator/repos/nutrition/
+            "$GITHUB_WORKSPACE/" "${{ vars.DEPLOY_REPO_DIR }}/"
 
       - name: Rebuild & redémarrage du conteneur
         run: |
-          cd /home/administrator/stacks/nutrition
+          cd "${{ vars.DEPLOY_STACK_DIR }}"
           docker compose up -d --build
           docker compose ps
 
