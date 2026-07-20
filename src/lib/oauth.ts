@@ -18,6 +18,11 @@ export function clientId(): string {
 function clientSecret(): string {
   return process.env.OAUTH_CLIENT_SECRET || "";
 }
+
+/** Infos client OAuth partagées (affichées dans le profil pour config mobile). */
+export function oauthClientInfo(): { clientId: string; clientSecret: string; mcpUrl: string } {
+  return { clientId: clientId(), clientSecret: clientSecret(), mcpUrl: resourceUrl() };
+}
 function jwtSecret(): string {
   // Secret dédié si présent, sinon repli sur le secret de session.
   return process.env.OAUTH_JWT_SECRET || process.env.SESSION_SECRET || "";
@@ -127,7 +132,13 @@ export function verifyRefreshToken(token: string): string | null {
 
 // --- Codes d'autorisation (éphémères, en mémoire) -------------------------
 
-type CodeEntry = { codeChallenge: string; redirectUri: string; clientId: string; exp: number };
+type CodeEntry = {
+  codeChallenge: string;
+  redirectUri: string;
+  clientId: string;
+  userId: number;
+  exp: number;
+};
 const globalForCodes = globalThis as unknown as { _oauthCodes?: Map<string, CodeEntry> };
 const codes: Map<string, CodeEntry> = globalForCodes._oauthCodes ?? new Map();
 globalForCodes._oauthCodes = codes;
@@ -136,6 +147,7 @@ export function createAuthCode(params: {
   codeChallenge: string;
   redirectUri: string;
   clientId: string;
+  userId: number;
 }): string {
   const code = randomBytes(32).toString("base64url");
   codes.set(code, {
@@ -145,14 +157,14 @@ export function createAuthCode(params: {
   return code;
 }
 
-export function consumeAuthCode(
-  code: string,
-): { codeChallenge: string; redirectUri: string; clientId: string } | null {
+export function consumeAuthCode(code: string): Omit<CodeEntry, "exp"> | null {
   const entry = codes.get(code);
   if (!entry) return null;
   codes.delete(code); // usage unique
   if (entry.exp < nowSec()) return null;
-  return entry;
+  const { exp: _exp, ...rest } = entry;
+  void _exp;
+  return rest;
 }
 
 /** Vérifie PKCE S256 : base64url(sha256(verifier)) === challenge. */

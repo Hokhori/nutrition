@@ -1,4 +1,5 @@
-import { verifyWebPassword } from "@/lib/auth";
+import { verifyPasswordHash } from "@/lib/auth";
+import { getUserByEmail } from "@/lib/services";
 import {
   clientId,
   isAllowedRedirect,
@@ -76,7 +77,9 @@ function loginForm(p: Params, error?: string): Response {
          <p style="color:#8b98a9;font-size:.9rem;margin:.25rem 0 0">Autoriser <b>Claude</b> à accéder à ton suivi</p>
        </div>
        ${hidden}
-       <input type="password" name="password" placeholder="Mot de passe" autofocus autocomplete="current-password" required
+       <input type="email" name="email" placeholder="Email" autofocus autocomplete="email" required
+         style="width:100%;box-sizing:border-box;background:#1b232d;border:1px solid #263040;border-radius:.6rem;padding:.6rem .75rem;color:#e6edf3;outline:none;margin-bottom:.5rem">
+       <input type="password" name="password" placeholder="Mot de passe" autocomplete="current-password" required
          style="width:100%;box-sizing:border-box;background:#1b232d;border:1px solid #263040;border-radius:.6rem;padding:.6rem .75rem;color:#e6edf3;outline:none">
        ${error ? `<p style="color:#f87171;font-size:.85rem;margin:.5rem 0 0">${esc(error)}</p>` : ""}
        <button type="submit"
@@ -101,15 +104,21 @@ export async function POST(req: Request) {
   const err = validate(p);
   if (err) return errorPage(err);
 
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
   const password = String(form.get("password") ?? "");
-  if (!verifyWebPassword(password)) {
-    return loginForm(p, "Mot de passe incorrect.");
+  const user = await getUserByEmail(email);
+  if (!user || !verifyPasswordHash(user.passwordHash, password)) {
+    return loginForm(p, "Email ou mot de passe incorrect.");
+  }
+  if (user.status !== "active") {
+    return loginForm(p, "Compte en attente de validation.");
   }
 
   const code = createAuthCode({
     codeChallenge: p.code_challenge,
     redirectUri: p.redirect_uri,
     clientId: p.client_id,
+    userId: user.id,
   });
 
   const to = new URL(p.redirect_uri);

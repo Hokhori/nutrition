@@ -15,6 +15,13 @@
       "when": 1784469478836,
       "tag": "0001_fat_husk",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784532099841,
+      "tag": "0002_small_martin_li",
+      "breakpoints": true
     }
   ]
 }

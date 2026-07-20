@@ -1,10 +1,13 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { getIronSession, type SessionOptions } from "iron-session";
-import { scryptSync, timingSafeEqual } from "node:crypto";
+import { scryptSync, timingSafeEqual, randomBytes } from "node:crypto";
+
+export type Role = "admin" | "user";
 
 export type SessionData = {
-  authenticated?: boolean;
+  userId?: number;
+  role?: Role;
 };
 
 // Options calculées à l'appel (pas au chargement du module) pour ne pas
@@ -34,14 +37,24 @@ export async function getSession() {
   return getIronSession<SessionData>(cookieStore, buildSessionOptions());
 }
 
-export async function isAuthenticated(): Promise<boolean> {
+/** Utilisateur connecté (session web), ou null. */
+export async function getSessionUser(): Promise<{ userId: number; role: Role } | null> {
   const session = await getSession();
-  return session.authenticated === true;
+  if (typeof session.userId === "number") {
+    return { userId: session.userId, role: session.role ?? "user" };
+  }
+  return null;
 }
 
-/** Vérifie un mot de passe contre WEB_PASSWORD_HASH (format scrypt:salt:hash). */
-export function verifyWebPassword(input: string): boolean {
-  const stored = process.env.WEB_PASSWORD_HASH;
+/** Hash un mot de passe (format scrypt:salt:hash). */
+export function hashPassword(input: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(input, salt, 64).toString("hex");
+  return `scrypt:${salt}:${hash}`;
+}
+
+/** Vérifie un mot de passe contre un hash stocké (format scrypt:salt:hash). */
+export function verifyPasswordHash(stored: string | null | undefined, input: string): boolean {
   if (!stored) return false;
   const parts = stored.split(":");
   if (parts.length !== 3 || parts[0] !== "scrypt") return false;
@@ -54,6 +67,11 @@ export function verifyWebPassword(input: string): boolean {
     return false;
   }
   return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
+/** Génère un token MCP personnel. */
+export function generateMcpToken(): string {
+  return randomBytes(32).toString("hex");
 }
 
 /** Comparaison constante d'un token avec MCP_TOKEN. */

@@ -1,8 +1,9 @@
 import "server-only";
-import { asc, desc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
-import { foods, entries, settings, weightLog, activities } from "@/db/schema";
-import type { Food, Activity } from "@/db/schema";
+import { foods, entries, settings, weightLog, activities, users, appConfig } from "@/db/schema";
+import type { Food, Activity, User } from "@/db/schema";
+import { hashPassword, generateMcpToken, type Role } from "./auth";
 import {
   type Nutrients,
   type Per100,
@@ -28,6 +29,111 @@ import type {
   LogWeightInput,
   LogActivityInput,
 } from "./validation";
+
+// --- Utilisateurs & config ------------------------------------------------
+
+export type PublicUser = {
+  id: number;
+  email: string;
+  role: Role;
+  status: "active" | "pending";
+  createdAt: string;
+};
+
+function toPublicUser(u: User): PublicUser {
+  return {
+    id: u.id,
+    email: u.email,
+    role: u.role as Role,
+    status: u.status as "active" | "pending",
+    createdAt: u.createdAt.toISOString(),
+  };
+}
+
+export async function getUserByEmail(email: string): Promise<User | null> {
+  const rows = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getUserById(id: number): Promise<User | null> {
+  const rows = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getUserByMcpToken(token: string): Promise<User | null> {
+  const rows = await db.select().from(users).where(eq(users.mcpToken, token)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function createUser(input: {
+  email: string;
+  password: string;
+  role?: Role;
+  status?: "active" | "pending";
+}): Promise<User> {
+  const [row] = await db
+    .insert(users)
+    .values({
+      email: input.email.toLowerCase(),
+      passwordHash: hashPassword(input.password),
+      role: input.role ?? "user",
+      status: input.status ?? "active",
+      mcpToken: generateMcpToken(),
+    })
+    .returning();
+  // Crée d'emblée la ligne settings de l'utilisateur.
+  await db.insert(settings).values({ userId: row.id }).onConflictDoNothing();
+  return row;
+}
+
+export async function listUsers(): Promise<PublicUser[]> {
+  const rows = await db.select().from(users).orderBy(asc(users.createdAt));
+  return rows.map(toPublicUser);
+}
+
+export async function setUserStatus(id: number, status: "active" | "pending"): Promise<void> {
+  await db.update(users).set({ status }).where(eq(users.id, id));
+}
+
+export async function setUserRole(id: number, role: Role): Promise<void> {
+  await db.update(users).set({ role }).where(eq(users.id, id));
+}
+
+export async function deleteUser(id: number): Promise<void> {
+  await db.delete(users).where(eq(users.id, id));
+}
+
+export async function regenerateMcpToken(id: number): Promise<string> {
+  const token = generateMcpToken();
+  await db.update(users).set({ mcpToken: token }).where(eq(users.id, id));
+  return token;
+}
+
+export async function countAdmins(): Promise<number> {
+  const rows = await db.select({ id: users.id }).from(users).where(eq(users.role, "admin"));
+  return rows.length;
+}
+
+export async function getFirstAdminId(): Promise<number | null> {
+  const [row] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.role, "admin"))
+    .orderBy(asc(users.id))
+    .limit(1);
+  return row?.id ?? null;
+}
+
+export async function getAppConfig(): Promise<{ requireApproval: boolean }> {
+  await db.insert(appConfig).values({ id: 1 }).onConflictDoNothing();
+  const [row] = await db.select().from(appConfig).where(eq(appConfig.id, 1)).limit(1);
+  return { requireApproval: row?.requireApproval ?? false };
+}
+
+export async function setRequireApproval(value: boolean): Promise<void> {
+  await getAppConfig();
+  await db.update(appConfig).set({ requireApproval: value }).where(eq(appConfig.id, 1));
+}
 
 // --- Aliments -------------------------------------------------------------
 
@@ -64,7 +170,7 @@ export async function getFoodByBarcode(barcode: string): Promise<Food | null> {
   return rows[0] ?? null;
 }
 
-export async function createFood(input: CreateFoodInput): Promise<Food> {
+export async function createFood(input: CreateFoodInput, createdBy?: number | null): Promise<Food> {
   const p = input.per_100g;
   const [row] = await db
     .insert(foods)
@@ -82,6 +188,7 @@ export async function createFood(input: CreateFoodInput): Promise<Food> {
       saltG: p.saltG,
       servingSizeG: input.servingSizeG ?? null,
       source: input.source ?? "manual",
+      createdBy: createdBy ?? null,
     })
     .returning();
   return row;
@@ -133,13 +240,13 @@ function entryNutrients(quantityG: number, food: Food | null): Nutrients {
   return scaleNutrients(foodPer100(food), quantityG);
 }
 
-export async function listEntries(dateInput?: string | null): Promise<EntryView[]> {
+export async function listEntries(userId: number, dateInput?: string | null): Promise<EntryView[]> {
   const date = resolveDate(dateInput);
   const rows = await db
     .select({ entry: entries, food: foods })
     .from(entries)
     .leftJoin(foods, eq(entries.foodId, foods.id))
-    .where(eq(entries.consumedOn, date))
+    .where(and(eq(entries.userId, userId), eq(entries.consumedOn, date)))
     .orderBy(asc(entries.createdAt));
 
   return rows.map(({ entry, food }) => ({
@@ -154,7 +261,7 @@ export async function listEntries(dateInput?: string | null): Promise<EntryView[
   }));
 }
 
-export async function addEntry(input: LogFoodInput): Promise<EntryView> {
+export async function addEntry(userId: number, input: LogFoodInput): Promise<EntryView> {
   const date = resolveDate(input.date);
   let food: Food | null = null;
   if (input.foodId !== undefined) {
@@ -166,6 +273,7 @@ export async function addEntry(input: LogFoodInput): Promise<EntryView> {
   const [row] = await db
     .insert(entries)
     .values({
+      userId,
       consumedOn: date,
       foodId: food?.id ?? null,
       label: food ? null : (input.label ?? null),
@@ -186,54 +294,64 @@ export async function addEntry(input: LogFoodInput): Promise<EntryView> {
   };
 }
 
-export async function deleteEntry(id: number): Promise<boolean> {
-  const rows = await db.delete(entries).where(eq(entries.id, id)).returning({ id: entries.id });
+export async function deleteEntry(userId: number, id: number): Promise<boolean> {
+  const rows = await db
+    .delete(entries)
+    .where(and(eq(entries.id, id), eq(entries.userId, userId)))
+    .returning({ id: entries.id });
   return rows.length > 0;
 }
 
 // --- Réglages / objectif --------------------------------------------------
 
-export async function getSettings() {
-  await db.insert(settings).values({ id: 1 }).onConflictDoNothing();
-  const [row] = await db.select().from(settings).where(eq(settings.id, 1)).limit(1);
+export async function getSettings(userId: number) {
+  await db.insert(settings).values({ userId }).onConflictDoNothing();
+  const [row] = await db.select().from(settings).where(eq(settings.userId, userId)).limit(1);
   return row;
 }
 
-export async function updateSettings(patch: SetGoalInput) {
-  await getSettings(); // garantit l'existence de la ligne
+export async function updateSettings(userId: number, patch: SetGoalInput) {
+  await getSettings(userId); // garantit l'existence de la ligne
   const set: Record<string, unknown> = { updatedAt: new Date() };
   for (const key of Object.keys(patch) as (keyof SetGoalInput)[]) {
     if (patch[key] !== undefined) set[key] = patch[key];
   }
-  const [row] = await db.update(settings).set(set).where(eq(settings.id, 1)).returning();
+  const [row] = await db.update(settings).set(set).where(eq(settings.userId, userId)).returning();
   return row;
 }
 
 // --- Poids ----------------------------------------------------------------
 
-export async function logWeight(input: LogWeightInput) {
+export async function logWeight(userId: number, input: LogWeightInput) {
   const date = resolveDate(input.date);
   const [row] = await db
     .insert(weightLog)
-    .values({ loggedOn: date, weightKg: input.weightKg })
-    .onConflictDoUpdate({ target: weightLog.loggedOn, set: { weightKg: input.weightKg } })
+    .values({ userId, loggedOn: date, weightKg: input.weightKg })
+    .onConflictDoUpdate({
+      target: [weightLog.userId, weightLog.loggedOn],
+      set: { weightKg: input.weightKg },
+    })
     .returning();
   return row;
 }
 
-export async function latestWeight(): Promise<{ loggedOn: string; weightKg: number } | null> {
+export async function latestWeight(
+  userId: number,
+): Promise<{ loggedOn: string; weightKg: number } | null> {
   const [row] = await db
     .select({ loggedOn: weightLog.loggedOn, weightKg: weightLog.weightKg })
     .from(weightLog)
+    .where(eq(weightLog.userId, userId))
     .orderBy(desc(weightLog.loggedOn))
     .limit(1);
   return row ?? null;
 }
 
-export async function weightSeries(limit = 180) {
+export async function weightSeries(userId: number, limit = 180) {
   const rows = await db
     .select({ loggedOn: weightLog.loggedOn, weightKg: weightLog.weightKg })
     .from(weightLog)
+    .where(eq(weightLog.userId, userId))
     .orderBy(asc(weightLog.loggedOn))
     .limit(limit);
   return rows;
@@ -241,13 +359,13 @@ export async function weightSeries(limit = 180) {
 
 // --- Activité physique ----------------------------------------------------
 
-export async function addActivity(input: LogActivityInput): Promise<Activity> {
+export async function addActivity(userId: number, input: LogActivityInput): Promise<Activity> {
   const date = resolveDate(input.date);
   let kcal = input.kcal;
   let met = input.met ?? null;
   if (kcal === undefined) {
     // Calcul via MET + durée + dernier poids connu.
-    const lw = await latestWeight();
+    const lw = await latestWeight(userId);
     if (!lw) {
       throw new ServiceError(
         "Aucun poids enregistré : fournis les kcal directement ou logue ton poids.",
@@ -263,6 +381,7 @@ export async function addActivity(input: LogActivityInput): Promise<Activity> {
   const [row] = await db
     .insert(activities)
     .values({
+      userId,
       performedOn: date,
       name: input.name,
       durationMin: input.durationMin ?? null,
@@ -273,17 +392,20 @@ export async function addActivity(input: LogActivityInput): Promise<Activity> {
   return row;
 }
 
-export async function listActivities(dateInput?: string | null): Promise<Activity[]> {
+export async function listActivities(userId: number, dateInput?: string | null): Promise<Activity[]> {
   const date = resolveDate(dateInput);
   return db
     .select()
     .from(activities)
-    .where(eq(activities.performedOn, date))
+    .where(and(eq(activities.userId, userId), eq(activities.performedOn, date)))
     .orderBy(asc(activities.createdAt));
 }
 
-export async function deleteActivity(id: number): Promise<boolean> {
-  const rows = await db.delete(activities).where(eq(activities.id, id)).returning({ id: activities.id });
+export async function deleteActivity(userId: number, id: number): Promise<boolean> {
+  const rows = await db
+    .delete(activities)
+    .where(and(eq(activities.id, id), eq(activities.userId, userId)))
+    .returning({ id: activities.id });
   return rows.length > 0;
 }
 
@@ -295,15 +417,15 @@ function currentAge(birthYear: number | null): number | null {
   return y - birthYear;
 }
 
-export async function computeTargets(): Promise<{
+export async function computeTargets(userId: number): Promise<{
   target: CalorieTarget;
   macros: MacroTargets;
   currentWeightKg: number | null;
   sedentaryKcal: number | null;
   minKcal: number | null;
 }> {
-  const s = await getSettings();
-  const lw = await latestWeight();
+  const s = await getSettings(userId);
+  const lw = await latestWeight(userId);
   const weightKg = lw?.weightKg ?? null;
   const age = currentAge(s.birthYear);
 
@@ -363,12 +485,15 @@ export type DailySummary = {
   minKcal: number | null; // plancher (BMR) à ne pas franchir durablement
 };
 
-export async function getDailySummary(dateInput?: string | null): Promise<DailySummary> {
+export async function getDailySummary(
+  userId: number,
+  dateInput?: string | null,
+): Promise<DailySummary> {
   const date = resolveDate(dateInput);
   const [entryViews, targets, dayActivities] = await Promise.all([
-    listEntries(date),
-    computeTargets(),
-    listActivities(date),
+    listEntries(userId, date),
+    computeTargets(userId),
+    listActivities(userId, date),
   ]);
 
   const totalsRaw = entryViews.reduce<Nutrients>(
@@ -414,12 +539,12 @@ export type Progress = {
   daysUntilNextWeighIn: number | null;
 };
 
-export async function getProgress(): Promise<Progress> {
-  const s = await getSettings();
+export async function getProgress(userId: number): Promise<Progress> {
+  const s = await getSettings(userId);
   const [lw, series, targets] = await Promise.all([
-    latestWeight(),
-    weightSeries(),
-    computeTargets(),
+    latestWeight(userId),
+    weightSeries(userId),
+    computeTargets(userId),
   ]);
   const eta = estimateGoalDate({
     currentWeightKg: lw?.weightKg ?? null,

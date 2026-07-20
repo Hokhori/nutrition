@@ -41,6 +41,13 @@ async function guard(fn: () => Promise<ToolResult>): Promise<ToolResult> {
   }
 }
 
+/** Récupère l'userId injecté par verifyToken (authInfo.extra.userId). */
+function uid(extra: { authInfo?: { extra?: Record<string, unknown> } }): number {
+  const id = extra?.authInfo?.extra?.userId;
+  if (typeof id !== "number") throw new Error("Utilisateur non identifié (token invalide).");
+  return id;
+}
+
 // Raw shape des macros pour 100 g (réutilisé par create_food).
 const per100Shape = {
   kcal: z.number().min(0).describe("kcal pour 100 g/ml"),
@@ -96,16 +103,19 @@ export function registerTools(server: McpServer): void {
       servingSizeG: z.number().positive().optional().describe("poids d'une portion standard en g (optionnel)"),
       source: z.string().optional().describe("'openfoodfacts' | 'web' | 'manual'"),
     },
-    async (args) =>
+    async (args, extra) =>
       guard(async () => {
-        const food = await svc.createFood({
-          name: args.name,
-          brand: args.brand ?? null,
-          barcode: args.barcode ?? null,
-          per_100g: args.per_100g,
-          servingSizeG: args.servingSizeG ?? null,
-          source: args.source ?? "web",
-        });
+        const food = await svc.createFood(
+          {
+            name: args.name,
+            brand: args.brand ?? null,
+            barcode: args.barcode ?? null,
+            per_100g: args.per_100g,
+            servingSizeG: args.servingSizeG ?? null,
+            source: args.source ?? "web",
+          },
+          uid(extra),
+        );
         return ok(food, `Aliment créé : ${food.name} (#${food.id}).`);
       }),
   );
@@ -150,12 +160,12 @@ export function registerTools(server: McpServer): void {
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
       meal: z.enum(MEALS).optional(),
     },
-    async (args) =>
+    async (args, extra) =>
       guard(async () => {
         if (args.foodId === undefined && !args.label) {
           return fail("Fournir foodId (préféré) ou label. Cherche/crée l'aliment d'abord.");
         }
-        const entry = await svc.addEntry({
+        const entry = await svc.addEntry(uid(extra), {
           foodId: args.foodId,
           label: args.label,
           quantityG: args.quantityG,
@@ -171,9 +181,9 @@ export function registerTools(server: McpServer): void {
     "list_entries",
     "Liste les apports d'un jour (défaut aujourd'hui). date au format YYYY-MM-DD.",
     { date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() },
-    async (args) =>
+    async (args, extra) =>
       guard(async () => {
-        const rows = await svc.listEntries(args.date);
+        const rows = await svc.listEntries(uid(extra), args.date);
         return ok({ entries: rows }, `${rows.length} apport(s).`);
       }),
   );
@@ -183,9 +193,9 @@ export function registerTools(server: McpServer): void {
     "delete_entry",
     "Supprime un apport du journal par son id.",
     { id: z.number().int().positive() },
-    async (args) =>
+    async (args, extra) =>
       guard(async () => {
-        const okDel = await svc.deleteEntry(args.id);
+        const okDel = await svc.deleteEntry(uid(extra), args.id);
         return okDel ? ok({ deleted: true }, `Apport #${args.id} supprimé.`) : fail(`Apport #${args.id} introuvable.`);
       }),
   );
@@ -195,9 +205,9 @@ export function registerTools(server: McpServer): void {
     "get_daily_summary",
     "Résumé nutritionnel d'un jour : totaux (kcal + macros), cap calorique, cibles de macros et kcal restantes. date optionnelle (défaut aujourd'hui).",
     { date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() },
-    async (args) =>
+    async (args, extra) =>
       guard(async () => {
-        const s = await svc.getDailySummary(args.date);
+        const s = await svc.getDailySummary(uid(extra), args.date);
         const cap = s.target.target !== null ? `${s.totals.kcal}/${s.target.target} kcal` : `${s.totals.kcal} kcal (cap non défini)`;
         return ok(s, `Résumé ${s.date} — ${cap}, ${s.remainingKcal !== null ? `${s.remainingKcal} restantes` : "objectif à définir"}.`);
       }),
@@ -217,10 +227,11 @@ export function registerTools(server: McpServer): void {
       manualKcalTarget: z.number().positive().max(10000).nullable().optional(),
       proteinTargetG: z.number().positive().max(500).nullable().optional(),
     },
-    async (args) =>
+    async (args, extra) =>
       guard(async () => {
-        await svc.updateSettings(args);
-        const targets = await svc.computeTargets();
+        const userId = uid(extra);
+        await svc.updateSettings(userId, args);
+        const targets = await svc.computeTargets(userId);
         const cap = targets.target.target;
         return ok(targets, cap !== null ? `Objectif mis à jour. Cap calorique : ${cap} kcal/j.` : `Objectif partiellement défini. Manque : ${targets.target.missing.join(", ")}.`);
       }),
@@ -231,9 +242,9 @@ export function registerTools(server: McpServer): void {
     "log_weight",
     "Enregistre une pesée (kg) pour un jour (défaut aujourd'hui, upsert). Sert au calcul du cap et au suivi.",
     { weightKg: z.number().positive().max(500), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() },
-    async (args) =>
+    async (args, extra) =>
       guard(async () => {
-        const row = await svc.logWeight({ weightKg: args.weightKg, date: args.date });
+        const row = await svc.logWeight(uid(extra), { weightKg: args.weightKg, date: args.date });
         return ok(row, `Poids enregistré : ${row.weightKg} kg le ${row.loggedOn}.`);
       }),
   );
@@ -243,9 +254,9 @@ export function registerTools(server: McpServer): void {
     "get_progress",
     "Progression vers l'objectif : poids actuel, cible, kg restants, semaines estimées, ETA, cap calorique, et série de poids.",
     {},
-    async () =>
+    async (_args, extra) =>
       guard(async () => {
-        const p = await svc.getProgress();
+        const p = await svc.getProgress(uid(extra));
         const line =
           p.currentWeightKg !== null && p.targetWeightKg !== null
             ? `${p.currentWeightKg} kg → ${p.targetWeightKg} kg (${p.kgRemaining} kg, ~${p.weeksRemaining} sem, ETA ${p.etaISO ?? "?"}).`
@@ -265,12 +276,12 @@ export function registerTools(server: McpServer): void {
       met: z.number().positive().max(25).optional(),
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     },
-    async (args) =>
+    async (args, extra) =>
       guard(async () => {
         if (args.kcal === undefined && (args.met === undefined || args.durationMin === undefined)) {
           return fail("Fournir kcal, ou met + durationMin.");
         }
-        const a = await svc.addActivity(args);
+        const a = await svc.addActivity(uid(extra), args);
         return ok(a, `Activité enregistrée : ${a.name} — ${a.kcal} kcal brûlées.`);
       }),
   );
@@ -280,9 +291,9 @@ export function registerTools(server: McpServer): void {
     "list_activities",
     "Liste les activités physiques d'un jour (défaut aujourd'hui).",
     { date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() },
-    async (args) =>
+    async (args, extra) =>
       guard(async () => {
-        const rows = await svc.listActivities(args.date);
+        const rows = await svc.listActivities(uid(extra), args.date);
         const total = rows.reduce((s, a) => s + a.kcal, 0);
         return ok({ activities: rows }, `${rows.length} activité(s), ${Math.round(total)} kcal brûlées.`);
       }),
@@ -293,9 +304,9 @@ export function registerTools(server: McpServer): void {
     "delete_activity",
     "Supprime une activité physique par son id.",
     { id: z.number().int().positive() },
-    async (args) =>
+    async (args, extra) =>
       guard(async () => {
-        const okDel = await svc.deleteActivity(args.id);
+        const okDel = await svc.deleteActivity(uid(extra), args.id);
         return okDel ? ok({ deleted: true }, `Activité #${args.id} supprimée.`) : fail(`Activité #${args.id} introuvable.`);
       }),
   );

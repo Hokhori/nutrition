@@ -70,7 +70,7 @@ export async function POST(req: Request) {
     if (!codeVerifier || !verifyPkce(codeVerifier, entry.codeChallenge))
       return oauthError("invalid_grant", "PKCE invalide");
 
-    return Response.json(issueTokens("logan"), { headers: CORS });
+    return Response.json(issueTokens(String(entry.userId)), { headers: CORS });
   }
 
   if (grantType === "refresh_token") {

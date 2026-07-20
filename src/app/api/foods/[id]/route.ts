@@ -1,4 +1,4 @@
-import { isRequestAuthorized, unauthorized, errorResponse } from "@/lib/api-guard";
+import { getCurrentUserId, unauthorized, errorResponse } from "@/lib/api-guard";
 import { getFood, updateFood } from "@/lib/services";
 import { updateFoodSchema } from "@/lib/validation";
 
@@ -6,7 +6,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  if (!(await isRequestAuthorized(req))) return unauthorized();
+  const userId = await getCurrentUserId(req);
+  if (!userId) return unauthorized();
   try {
     const { id } = await ctx.params;
     const food = await getFood(Number(id));
@@ -18,7 +19,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
 }
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  if (!(await isRequestAuthorized(req))) return unauthorized();
+  const userId = await getCurrentUserId(req);
+  if (!userId) return unauthorized();
   try {
     const { id } = await ctx.params;
     const body = await req.json();

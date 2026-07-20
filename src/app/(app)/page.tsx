@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { redirect } from "next/navigation";
+import { getSessionUser } from "@/lib/auth";
 import { getDailySummary } from "@/lib/services";
 import { resolveDate, todayISO, addDaysISO } from "@/lib/date";
 import { frDate, fmt } from "@/lib/format";
@@ -15,10 +17,12 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
   const sp = await searchParams;
   const date = resolveDate(sp.date);
   const today = todayISO();
-  const summary = await getDailySummary(date);
+  const summary = await getDailySummary(user.userId, date);
   const { totals, macros, target } = summary;
   const min = summary.minKcal;
   const cap = summary.effectiveTargetKcal;

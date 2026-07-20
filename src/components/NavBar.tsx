@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Apple, Dumbbell, Target, TrendingUp } from "lucide-react";
-import { logoutAction } from "@/app/login/actions";
+import { Home, Apple, Dumbbell, Target, TrendingUp, User, Shield } from "lucide-react";
 
 const links = [
   { href: "/", label: "Jour", icon: Home },
@@ -13,7 +12,7 @@ const links = [
   { href: "/progress", label: "Progrès", icon: TrendingUp },
 ];
 
-export function NavBar() {
+export function NavBar({ isAdmin }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   return (
     <>
@@ -42,11 +41,32 @@ export function NavBar() {
               );
             })}
           </nav>
-          <form action={logoutAction}>
-            <button className="text-sm text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)]">
-              Déconnexion
-            </button>
-          </form>
+          <div className="flex items-center gap-1">
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className={`rounded-lg p-2 ${
+                  pathname === "/admin"
+                    ? "text-[color:var(--color-brand)]"
+                    : "text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)]"
+                }`}
+                aria-label="Admin"
+              >
+                <Shield size={18} />
+              </Link>
+            )}
+            <Link
+              href="/profile"
+              className={`rounded-lg p-2 ${
+                pathname === "/profile"
+                  ? "text-[color:var(--color-brand)]"
+                  : "text-[color:var(--color-muted)] hover:text-[color:var(--color-fg)]"
+              }`}
+              aria-label="Profil"
+            >
+              <User size={18} />
+            </Link>
+          </div>
         </div>
       </header>
 

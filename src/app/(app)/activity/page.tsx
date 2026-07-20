@@ -1,10 +1,17 @@
+import { redirect } from "next/navigation";
+import { getSessionUser } from "@/lib/auth";
 import { getDailySummary, computeTargets } from "@/lib/services";
 import { ActivityPanel } from "@/components/ActivityPanel";
 
 export const dynamic = "force-dynamic";
 
 export default async function ActivityPage() {
-  const [summary, targets] = await Promise.all([getDailySummary(), computeTargets()]);
+  const user = await getSessionUser();
+  if (!user) redirect("/login");
+  const [summary, targets] = await Promise.all([
+    getDailySummary(user.userId),
+    computeTargets(user.userId),
+  ]);
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold">Activité physique</h1>

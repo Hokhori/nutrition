@@ -10,9 +10,17 @@ export function LoginForm() {
   return (
     <form action={action} className="space-y-3">
       <input
+        type="email"
+        name="email"
+        autoFocus
+        required
+        placeholder="Email"
+        className="input"
+        autoComplete="email"
+      />
+      <input
         type="password"
         name="password"
-        autoFocus
         required
         placeholder="Mot de passe"
         className="input"
