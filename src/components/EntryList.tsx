@@ -17,8 +17,10 @@ type Entry = {
     proteinG: number;
     carbsG: number;
     sugarsG: number;
+    addedSugarsG: number;
     fatG: number;
     saturatedG: number;
+    fiberG: number;
     saltG: number;
   };
 };
@@ -91,7 +93,11 @@ export function EntryList({ entries }: { entries: Entry[] }) {
                 <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-[color:var(--color-muted)]">
                   <span>Prot. {g(e.nutrients.proteinG)}</span>
                   <span>Gluc. {g(e.nutrients.carbsG)}</span>
-                  <span className="text-[color:var(--color-warn)]">Sucres {g(e.nutrients.sugarsG)}</span>
+                  <span className="text-[color:var(--color-warn)]">
+                    Sucres {g(e.nutrients.sugarsG)}
+                    {e.nutrients.addedSugarsG > 0 && ` (dont ajoutés ${g(e.nutrients.addedSugarsG)})`}
+                  </span>
+                  <span>Fibres {g(e.nutrients.fiberG)}</span>
                   <span>Lip. {g(e.nutrients.fatG)}</span>
                   <span>Sat. {g(e.nutrients.saturatedG)}</span>
                   <span>Sel {g(e.nutrients.saltG)}</span>

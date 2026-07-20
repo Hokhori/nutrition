@@ -1,0 +1,1 @@
+ALTER TABLE "foods" ADD COLUMN "added_sugars_g" real DEFAULT 0 NOT NULL;

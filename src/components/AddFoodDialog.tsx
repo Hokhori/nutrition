@@ -35,6 +35,7 @@ const MACRO_FIELDS: { key: string; label: string }[] = [
   { key: "proteinG", label: "Protéines" },
   { key: "carbsG", label: "Glucides" },
   { key: "sugarsG", label: "Sucres" },
+  { key: "addedSugarsG", label: "Sucres ajoutés" },
   { key: "fatG", label: "Lipides" },
   { key: "saturatedG", label: "Saturés" },
   { key: "fiberG", label: "Fibres" },

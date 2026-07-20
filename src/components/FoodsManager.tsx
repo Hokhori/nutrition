@@ -15,6 +15,7 @@ type Food = {
   proteinG: number;
   carbsG: number;
   sugarsG: number;
+  addedSugarsG: number;
   fatG: number;
   saturatedG: number;
   fiberG: number;
@@ -28,6 +29,7 @@ const MACRO_FIELDS: { key: keyof Food; label: string }[] = [
   { key: "proteinG", label: "Protéines" },
   { key: "carbsG", label: "Glucides" },
   { key: "sugarsG", label: "Sucres" },
+  { key: "addedSugarsG", label: "Sucres ajoutés" },
   { key: "fatG", label: "Lipides" },
   { key: "saturatedG", label: "Saturés" },
   { key: "fiberG", label: "Fibres" },

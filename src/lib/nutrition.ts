@@ -7,7 +7,8 @@ export type Nutrients = {
   kcal: number;
   proteinG: number;
   carbsG: number;
-  sugarsG: number;
+  sugarsG: number; // sucres totaux
+  addedSugarsG: number; // dont sucres ajoutés (le reste = naturels)
   fatG: number;
   saturatedG: number;
   fiberG: number;
@@ -19,6 +20,7 @@ export const ZERO_NUTRIENTS: Nutrients = {
   proteinG: 0,
   carbsG: 0,
   sugarsG: 0,
+  addedSugarsG: 0,
   fatG: 0,
   saturatedG: 0,
   fiberG: 0,
@@ -36,6 +38,7 @@ export function scaleNutrients(per100: Per100, quantityG: number): Nutrients {
     proteinG: per100.proteinG * f,
     carbsG: per100.carbsG * f,
     sugarsG: per100.sugarsG * f,
+    addedSugarsG: per100.addedSugarsG * f,
     fatG: per100.fatG * f,
     saturatedG: per100.saturatedG * f,
     fiberG: per100.fiberG * f,
@@ -49,6 +52,7 @@ export function addNutrients(a: Nutrients, b: Nutrients): Nutrients {
     proteinG: a.proteinG + b.proteinG,
     carbsG: a.carbsG + b.carbsG,
     sugarsG: a.sugarsG + b.sugarsG,
+    addedSugarsG: a.addedSugarsG + b.addedSugarsG,
     fatG: a.fatG + b.fatG,
     saturatedG: a.saturatedG + b.saturatedG,
     fiberG: a.fiberG + b.fiberG,
@@ -63,6 +67,7 @@ export function roundNutrients(n: Nutrients): Nutrients {
     proteinG: r(n.proteinG),
     carbsG: r(n.carbsG),
     sugarsG: r(n.sugarsG),
+    addedSugarsG: r(n.addedSugarsG),
     fatG: r(n.fatG),
     saturatedG: r(n.saturatedG),
     fiberG: r(n.fiberG),

@@ -66,7 +66,8 @@ export default async function DashboardPage({
           <div className="w-full flex-1 space-y-2.5">
             <MacroBar label="Protéines" value={totals.proteinG} target={macros.proteinG} />
             <MacroBar label="Glucides" value={totals.carbsG} target={macros.carbsG} />
-            <MacroBar label="Sucres" value={totals.sugarsG} target={macros.sugarsMaxG} kind="limit" />
+            <MacroBar label="Sucres (total)" value={totals.sugarsG} target={null} />
+            <MacroBar label="dont ajoutés" value={totals.addedSugarsG} target={macros.sugarsMaxG} kind="limit" />
             <MacroBar label="Lipides" value={totals.fatG} target={macros.fatG} />
             <MacroBar label="Saturés" value={totals.saturatedG} target={macros.saturatedMaxG} kind="limit" />
             <MacroBar label="Fibres" value={totals.fiberG} target={macros.fiberMinG} />

@@ -22,6 +22,13 @@
       "when": 1784532099841,
       "tag": "0002_small_martin_li",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784534038761,
+      "tag": "0003_lazy_ultimatum",
+      "breakpoints": true
     }
   ]
 }

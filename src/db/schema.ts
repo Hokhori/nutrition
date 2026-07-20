@@ -43,6 +43,7 @@ export const foods = pgTable("foods", {
   proteinG: real("protein_g").notNull().default(0),
   carbsG: real("carbs_g").notNull().default(0),
   sugarsG: real("sugars_g").notNull().default(0),
+  addedSugarsG: real("added_sugars_g").notNull().default(0),
   fatG: real("fat_g").notNull().default(0),
   saturatedG: real("saturated_g").notNull().default(0),
   fiberG: real("fiber_g").notNull().default(0),

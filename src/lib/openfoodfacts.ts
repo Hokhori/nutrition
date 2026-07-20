@@ -57,6 +57,7 @@ function normalize(p: OffProduct): OffCandidate | null {
     proteinG: num(n["proteins_100g"]),
     carbsG: num(n["carbohydrates_100g"]),
     sugarsG: num(n["sugars_100g"]),
+    addedSugarsG: num(n["added-sugars_100g"]),
     fatG: num(n["fat_100g"]),
     saturatedG: num(n["saturated-fat_100g"]),
     fiberG: num(n["fiber_100g"]),
