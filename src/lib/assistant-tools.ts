@@ -252,5 +252,95 @@ export function buildTools(userId: number) {
         return JSON.stringify({ id: r.id, name: r.name, kcal: r.kcal });
       },
     }),
+
+    betaTool({
+      name: "update_food",
+      description:
+        "Corrige/complète un aliment existant (macros manquantes ou fausses). Passe seulement les champs à modifier (id requis).",
+      inputSchema: {
+        type: "object",
+        properties: {
+          id: { type: "integer", minimum: 1 },
+          name: { type: "string" },
+          brand: { type: "string" },
+          kcal: nn,
+          proteinG: nn,
+          carbsG: nn,
+          sugarsG: nn,
+          addedSugarsG: nn,
+          fatG: nn,
+          saturatedG: nn,
+          fiberG: nn,
+          saltG: nn,
+          servingSizeG: { type: "number", minimum: 0 },
+        },
+        required: ["id"],
+        additionalProperties: false,
+      },
+      run: async (a) => {
+        const { id, ...patch } = a;
+        const food = await svc.updateFood(id, patch);
+        return JSON.stringify(food ? { id: food.id, name: food.name, kcal: food.kcal } : { error: `Aliment #${id} introuvable` });
+      },
+    }),
+
+    betaTool({
+      name: "list_entries",
+      description: "Liste les apports d'un jour (défaut aujourd'hui) avec leur id (utile pour corriger/supprimer).",
+      inputSchema: {
+        type: "object",
+        properties: { date: isoDate },
+        additionalProperties: false,
+      },
+      run: async ({ date }) => JSON.stringify(await svc.listEntries(userId, date)),
+    }),
+
+    betaTool({
+      name: "delete_entry",
+      description: "Supprime un apport du journal par son id (récupère l'id via list_entries ou get_daily_summary).",
+      inputSchema: {
+        type: "object",
+        properties: { id: { type: "integer", minimum: 1 } },
+        required: ["id"],
+        additionalProperties: false,
+      },
+      run: async ({ id }) => {
+        const done = await svc.deleteEntry(userId, id);
+        return JSON.stringify(done ? { deleted: id } : { error: `Apport #${id} introuvable` });
+      },
+    }),
+
+    betaTool({
+      name: "list_activities",
+      description: "Liste les activités physiques d'un jour (défaut aujourd'hui) avec leur id.",
+      inputSchema: {
+        type: "object",
+        properties: { date: isoDate },
+        additionalProperties: false,
+      },
+      run: async ({ date }) => JSON.stringify(await svc.listActivities(userId, date)),
+    }),
+
+    betaTool({
+      name: "delete_activity",
+      description: "Supprime une activité physique par son id.",
+      inputSchema: {
+        type: "object",
+        properties: { id: { type: "integer", minimum: 1 } },
+        required: ["id"],
+        additionalProperties: false,
+      },
+      run: async ({ id }) => {
+        const done = await svc.deleteActivity(userId, id);
+        return JSON.stringify(done ? { deleted: id } : { error: `Activité #${id} introuvable` });
+      },
+    }),
+
+    betaTool({
+      name: "get_progress",
+      description: "Progression vers l'objectif : poids actuel, cible, kg restants, semaines estimées, ETA, cap calorique.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      run: async () => JSON.stringify(await svc.getProgress(userId)),
+    }),
   ];
 }
