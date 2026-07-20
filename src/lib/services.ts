@@ -152,13 +152,30 @@ function foodPer100(f: Food): Per100 {
 }
 
 export async function searchFoods(query: string, limit = 10): Promise<Food[]> {
-  const like = `%${query}%`;
-  return db
+  const q = query.trim();
+  if (!q) return [];
+  // Match par mots-clés (pas seulement la phrase entière) pour retrouver un
+  // aliment proche malgré un ordre de mots différent → évite les doublons.
+  const tokens = q.toLowerCase().split(/\s+/).filter((t) => t.length >= 3);
+  const clauses = [ilike(foods.name, `%${q}%`), ilike(foods.brand, `%${q}%`)];
+  for (const t of tokens) clauses.push(ilike(foods.name, `%${t}%`));
+
+  const rows = await db
     .select()
     .from(foods)
-    .where(or(ilike(foods.name, like), ilike(foods.brand, like)))
-    .orderBy(asc(foods.name))
-    .limit(limit);
+    .where(or(...clauses))
+    .limit(Math.max(limit * 4, 40));
+
+  if (tokens.length === 0) return rows.slice(0, limit);
+  // Classe par nombre de mots-clés présents dans le nom (les plus proches d'abord).
+  return rows
+    .map((f) => {
+      const name = f.name.toLowerCase();
+      return { f, hits: tokens.filter((t) => name.includes(t)).length };
+    })
+    .sort((a, b) => b.hits - a.hits || a.f.name.localeCompare(b.f.name))
+    .slice(0, limit)
+    .map((s) => s.f);
 }
 
 export async function getFood(id: number): Promise<Food | null> {
