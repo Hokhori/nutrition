@@ -21,7 +21,8 @@ type CalorieTarget = {
   target: number | null;
   bmr: number | null;
   tdee: number | null;
-  dailyDeficit: number | null;
+  dailyDelta: number | null;
+  direction: "loss" | "gain" | "maintain";
   manual: boolean;
   missing: string[];
 };
@@ -111,7 +112,10 @@ export function GoalForm({
         )}
         {!target.manual && target.bmr !== null && (
           <p className="mt-1 text-xs text-[color:var(--color-muted)]">
-            Métabolisme {fmt(target.bmr)} · dépense {fmt(target.tdee)} · déficit −{fmt(target.dailyDeficit)} kcal/j
+            Métabolisme {fmt(target.bmr)} · dépense {fmt(target.tdee)}
+            {target.direction === "loss" && ` · déficit −${fmt(target.dailyDelta)} kcal/j`}
+            {target.direction === "gain" && ` · surplus +${fmt(target.dailyDelta)} kcal/j`}
+            {target.direction === "maintain" && ` · maintien`}
           </p>
         )}
       </div>

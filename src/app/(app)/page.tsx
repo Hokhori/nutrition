@@ -73,7 +73,18 @@ export default async function DashboardPage({
             <MacroBar label="Sel" value={totals.saltG} target={macros.saltMaxG} kind="limit" />
           </div>
         </div>
-        {showZone && (
+        {target.direction === "gain" && cap !== null && (
+          <div className="mt-4 flex flex-col items-center gap-0.5 border-t border-[color:var(--color-border)] pt-3 text-sm">
+            <div className="flex flex-wrap items-center justify-center gap-x-2 text-[color:var(--color-muted)]">
+              <span>📈 Objectif prise de poids — vise</span>
+              <span className="font-semibold text-[color:var(--color-fg)]">{fmt(cap)} kcal</span>
+            </div>
+            <div className="text-xs text-[color:var(--color-muted)]">
+              Surplus calorique quotidien pour prendre du poids progressivement
+            </div>
+          </div>
+        )}
+        {target.direction !== "gain" && showZone && (
           <div className="mt-4 flex flex-col items-center gap-0.5 border-t border-[color:var(--color-border)] pt-3 text-sm">
             {capAboveFloor ? (
               <div className="flex flex-wrap items-center justify-center gap-x-2 text-[color:var(--color-muted)]">

@@ -438,6 +438,7 @@ export async function computeTargets(userId: number): Promise<{
     heightCm: s.heightCm,
     weightKg,
     weeklyRateKg: s.weeklyRateKg,
+    targetWeightKg: s.targetWeightKg,
     manualKcalTarget: s.manualKcalTarget,
   };
 

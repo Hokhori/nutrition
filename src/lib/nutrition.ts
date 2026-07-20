@@ -118,13 +118,16 @@ export const KCAL_PER_KG = 7700;
 /** Plancher de sécurité pour le cap calorique. */
 export const MIN_KCAL_FLOOR = 1200;
 
+export type GoalDirection = "loss" | "gain" | "maintain";
+
 export type CalorieTargetInput = {
   sex: "m" | "f" | null;
   age: number | null;
   heightCm: number | null;
   weightKg: number | null; // dernière pesée connue
   activityLevel: ActivityLevel;
-  weeklyRateKg: number; // kg/semaine visés (perte)
+  weeklyRateKg: number; // kg/semaine visés (magnitude ; sens déduit du poids cible)
+  targetWeightKg: number | null; // poids cible : > actuel = prise, < actuel = perte
   manualKcalTarget: number | null;
 };
 
@@ -132,7 +135,8 @@ export type CalorieTarget = {
   target: number | null; // cap journalier (kcal), null si données insuffisantes
   bmr: number | null;
   tdee: number | null;
-  dailyDeficit: number | null;
+  dailyDelta: number | null; // variation kcal/j appliquée à la TDEE (magnitude ≥ 0)
+  direction: GoalDirection; // perte / prise / maintien
   manual: boolean;
   missing: string[]; // champs manquants pour le calcul
 };
@@ -143,7 +147,8 @@ export function computeCalorieTarget(input: CalorieTargetInput): CalorieTarget {
       target: Math.round(input.manualKcalTarget),
       bmr: null,
       tdee: null,
-      dailyDeficit: null,
+      dailyDelta: null,
+      direction: "maintain",
       manual: true,
       missing: [],
     };
@@ -156,7 +161,7 @@ export function computeCalorieTarget(input: CalorieTargetInput): CalorieTarget {
   if (!input.weightKg) missing.push("poids");
 
   if (missing.length > 0 || !input.sex || !input.age || !input.heightCm || !input.weightKg) {
-    return { target: null, bmr: null, tdee: null, dailyDeficit: null, manual: false, missing };
+    return { target: null, bmr: null, tdee: null, dailyDelta: null, direction: "maintain", missing, manual: false };
   }
 
   const bmr = bmrMifflinStJeor({
@@ -166,14 +171,28 @@ export function computeCalorieTarget(input: CalorieTargetInput): CalorieTarget {
     weightKg: input.weightKg,
   });
   const tdee = bmr * ACTIVITY_FACTORS[input.activityLevel];
-  const dailyDeficit = (Math.max(0, input.weeklyRateKg) * KCAL_PER_KG) / 7;
-  const target = Math.max(MIN_KCAL_FLOOR, Math.round(tdee - dailyDeficit));
+
+  // Sens de l'objectif : déduit du poids cible vs poids actuel (marge 0,1 kg).
+  // Sans poids cible → maintien (pas de déficit/surplus imposé).
+  let direction: GoalDirection = "maintain";
+  if (input.targetWeightKg != null) {
+    const gap = input.targetWeightKg - input.weightKg;
+    if (gap > 0.1) direction = "gain";
+    else if (gap < -0.1) direction = "loss";
+  }
+
+  const dailyDelta = direction === "maintain" ? 0 : (Math.max(0, input.weeklyRateKg) * KCAL_PER_KG) / 7;
+  const raw =
+    direction === "gain" ? tdee + dailyDelta : direction === "loss" ? tdee - dailyDelta : tdee;
+  // Plancher de sécurité seulement en perte (en prise, la cible est > TDEE).
+  const target = direction === "loss" ? Math.max(MIN_KCAL_FLOOR, Math.round(raw)) : Math.round(raw);
 
   return {
     target,
     bmr: Math.round(bmr),
     tdee: Math.round(tdee),
-    dailyDeficit: Math.round(dailyDeficit),
+    dailyDelta: Math.round(dailyDelta),
+    direction,
     manual: false,
     missing: [],
   };
@@ -250,9 +269,10 @@ export function estimateGoalDate(params: {
   if (!currentWeightKg || !targetWeightKg || weeklyRateKg <= 0) {
     return { weeksRemaining: null, etaISO: null, kgRemaining: null };
   }
-  const kgRemaining = currentWeightKg - targetWeightKg;
-  if (kgRemaining <= 0) {
-    return { weeksRemaining: 0, etaISO: fromISODate, kgRemaining: Math.round(kgRemaining * 10) / 10 };
+  // Distance à parcourir (kg), quel que soit le sens (perte OU prise).
+  const kgRemaining = Math.round(Math.abs(currentWeightKg - targetWeightKg) * 10) / 10;
+  if (kgRemaining < 0.1) {
+    return { weeksRemaining: 0, etaISO: fromISODate, kgRemaining: 0 };
   }
   const weeksRemaining = kgRemaining / weeklyRateKg;
   const from = new Date(fromISODate + "T00:00:00Z");
