@@ -1,0 +1,58 @@
+name: nutrition
+
+# Déploiement autonome pour auto-hébergement.
+#
+#   1. cp .env.example .env   (puis remplir — voir README « Auto-hébergement »)
+#   2. docker compose up -d --build
+#   3. l'app écoute sur http://localhost:${APP_PORT:-3000}
+#
+# Les migrations de base de données s'appliquent automatiquement au démarrage
+# du conteneur `app` (entrypoint). Mettez un reverse proxy (Caddy/Nginx/Traefik)
+# devant pour le HTTPS — requis pour le connecteur MCP OAuth de Claude.
+
+services:
+  app:
+    build:
+      context: .
+    image: nutrition:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${DB_USER:-nutrition}:${DB_PASSWORD:-nutrition}@db:5432/${DB_NAME:-nutrition}
+      # Auth / session (obligatoires)
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET manquant — voir .env.example}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL manquant}
+      WEB_PASSWORD_HASH: ${WEB_PASSWORD_HASH:?WEB_PASSWORD_HASH manquant — node scripts/hash-password.mjs}
+      # MCP / API
+      MCP_TOKEN: ${MCP_TOKEN:-}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
+      APP_TZ: ${APP_TZ:-Europe/Brussels}
+      OFF_USER_AGENT: ${OFF_USER_AGENT:-}
+      # OAuth connecteur Claude (facultatif)
+      OAUTH_CLIENT_ID: ${OAUTH_CLIENT_ID:-}
+      OAUTH_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET:-}
+      OAUTH_JWT_SECRET: ${OAUTH_JWT_SECRET:-}
+      # Assistant IA in-app (facultatif)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-nutrition}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nutrition}
+      POSTGRES_DB: ${DB_NAME:-nutrition}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-nutrition} -d ${DB_NAME:-nutrition}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:

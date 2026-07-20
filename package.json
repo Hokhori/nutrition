@@ -2,6 +2,13 @@
   "name": "nutrition",
   "version": "0.1.0",
   "private": true,
+  "description": "Suivi calorique & macros auto-hébergeable, avec serveur MCP et assistant IA (Next.js + Postgres).",
+  "license": "AGPL-3.0-only",
+  "homepage": "https://github.com/Hokhori/nutrition#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hokhori/nutrition.git"
+  },
   "packageManager": "pnpm@10.32.1",
   "scripts": {
     "dev": "next dev",

@@ -4,7 +4,8 @@ import { createHmac, createHash, randomBytes, timingSafeEqual } from "node:crypt
 // --- Config ---------------------------------------------------------------
 
 export function publicUrl(): string {
-  return (process.env.PUBLIC_URL || "https://nutrition.hokhori.be").replace(/\/$/, "");
+  // En prod, définir PUBLIC_URL (issuer OAuth + ressource MCP). Défaut : dev local.
+  return (process.env.PUBLIC_URL || "http://localhost:3000").replace(/\/$/, "");
 }
 export function issuer(): string {
   return publicUrl();

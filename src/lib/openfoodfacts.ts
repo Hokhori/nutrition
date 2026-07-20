@@ -6,7 +6,9 @@
 
 import type { Per100 } from "./nutrition";
 
-const UA = "nutrition-hokhori/1.0 (logan.hendryckx@hokhori.be)";
+// OpenFoodFacts demande un User-Agent identifiant l'app + un contact.
+// Chaque instance peut le personnaliser via OFF_USER_AGENT.
+const UA = process.env.OFF_USER_AGENT || "nutrition-tracker (self-hosted; https://github.com/Hokhori/nutrition)";
 const FIELDS =
   "code,product_name,product_name_fr,brands,serving_quantity,nutriments";
 

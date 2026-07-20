@@ -42,10 +42,16 @@ jobs:
         run: pnpm build
 
   # ── Déploiement : sur push main, sur le runner self-hosted du VPS ───────────
+  # Spécifique à l'instance officielle Hokhori. Les forks de la communauté ne
+  # l'exécutent pas (github.repository ≠ Hokhori/nutrition) : chez eux, seul le
+  # job « quality » tourne. Voir le README pour héberger votre propre instance.
   deploy:
     name: Déploiement VPS
     needs: quality
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: >-
+      github.repository == 'Hokhori/nutrition' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push'
     runs-on: [self-hosted, vps]
     concurrency:
       group: deploy-production
