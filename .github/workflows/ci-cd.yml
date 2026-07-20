@@ -41,10 +41,14 @@ jobs:
       - name: Build
         run: pnpm build
 
-  # ── Déploiement : sur push main, sur le runner self-hosted du VPS ───────────
+  # ── Déploiement : sur push main, par SSH depuis un runner GitHub-hosted ─────
   # Spécifique à l'instance officielle Hokhori. Les forks de la communauté ne
   # l'exécutent pas (github.repository ≠ Hokhori/nutrition) : chez eux, seul le
   # job « quality » tourne. Voir le README pour héberger votre propre instance.
+  #
+  # Sécurité : pas de runner self-hosted (aucune exécution de code de fork sur le
+  # VPS). Le déploiement se fait par SSH avec une clé dédiée stockée en secret ;
+  # GitHub n'expose jamais les secrets aux PR de forks.
   deploy:
     name: Déploiement VPS
     needs: quality
@@ -52,24 +56,29 @@ jobs:
       github.repository == 'Hokhori/nutrition' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push'
-    runs-on: [self-hosted, vps]
+    runs-on: ubuntu-latest
     concurrency:
       group: deploy-production
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
-      - name: Synchroniser le code vers le dépôt de build
+      - name: Configurer la clé SSH de déploiement
         run: |
-          rsync -a --delete \
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${{ secrets.DEPLOY_PORT }}" -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Synchroniser le code vers le VPS
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.DEPLOY_PORT }} -o IdentitiesOnly=yes" \
             --exclude '.git' --exclude 'node_modules' --exclude '.next' \
-            "$GITHUB_WORKSPACE/" "${{ vars.DEPLOY_REPO_DIR }}/"
+            ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ vars.DEPLOY_REPO_DIR }}/"
 
-      - name: Rebuild & redémarrage du conteneur
+      - name: Rebuild, redémarrage & nettoyage (sur le VPS)
         run: |
-          cd "${{ vars.DEPLOY_STACK_DIR }}"
-          docker compose up -d --build
-          docker compose ps
-
-      - name: Nettoyage images inutilisées
-        run: docker image prune -f
+          ssh -i ~/.ssh/deploy_key -p "${{ secrets.DEPLOY_PORT }}" -o IdentitiesOnly=yes \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "cd '${{ vars.DEPLOY_STACK_DIR }}' && docker compose up -d --build && docker compose ps && docker image prune -f"
