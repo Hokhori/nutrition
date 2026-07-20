@@ -15,9 +15,16 @@ function ok(data: unknown, summary?: string): ToolResult {
   const text = summary
     ? `${summary}\n\n${JSON.stringify(data, null, 2)}`
     : JSON.stringify(data, null, 2);
+  // structuredContent DOIT être un objet JSON (ni tableau ni scalaire) — sinon
+  // la validation côté client MCP échoue. On enveloppe les cas non conformes.
+  const structuredContent: Record<string, unknown> = Array.isArray(data)
+    ? { items: data }
+    : data && typeof data === "object"
+      ? (data as Record<string, unknown>)
+      : { value: data };
   return {
     content: [{ type: "text", text }],
-    structuredContent: data && typeof data === "object" ? (data as Record<string, unknown>) : { value: data },
+    structuredContent,
   };
 }
 
@@ -55,7 +62,7 @@ export function registerTools(server: McpServer): void {
     async (args) =>
       guard(async () => {
         const rows = await svc.searchFoods(args.query, args.limit ?? 10);
-        return ok(rows, `${rows.length} aliment(s) trouvé(s) pour "${args.query}".`);
+        return ok({ foods: rows }, `${rows.length} aliment(s) trouvé(s) pour "${args.query}".`);
       }),
   );
 
@@ -167,7 +174,7 @@ export function registerTools(server: McpServer): void {
     async (args) =>
       guard(async () => {
         const rows = await svc.listEntries(args.date);
-        return ok(rows, `${rows.length} apport(s).`);
+        return ok({ entries: rows }, `${rows.length} apport(s).`);
       }),
   );
 
@@ -277,7 +284,7 @@ export function registerTools(server: McpServer): void {
       guard(async () => {
         const rows = await svc.listActivities(args.date);
         const total = rows.reduce((s, a) => s + a.kcal, 0);
-        return ok(rows, `${rows.length} activité(s), ${Math.round(total)} kcal brûlées.`);
+        return ok({ activities: rows }, `${rows.length} activité(s), ${Math.round(total)} kcal brûlées.`);
       }),
   );
 
