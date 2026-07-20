@@ -1,16 +1,45 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getCurrentUserId, unauthorized } from "@/lib/api-guard";
 import { buildTools } from "@/lib/assistant-tools";
+import { getDailySummary, getSettings, latestWeight } from "@/lib/services";
 import { todayISO } from "@/lib/date";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Modèle le moins cher qui supporte le tool use (choix explicite : coût minimal).
-const MODEL = "claude-haiku-4-5";
+// Bon compromis qualité/coût pour l'usage d'outils et l'estimation des macros.
+const MODEL = "claude-sonnet-5";
 const MAX_HISTORY = 12; // borne l'historique renvoyé au modèle (tokens)
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
+
+const r = (n: number | null | undefined) => (n == null ? "?" : Math.round(n));
+const DIR_FR = { loss: "perte de poids", gain: "prise de poids", maintain: "maintien" } as const;
+
+/**
+ * Contexte du compte injecté à chaque appel (données centralisées en base) :
+ * évite un historique de conversation — l'assistant connaît l'état courant.
+ */
+async function buildUserContext(userId: number): Promise<string> {
+  const [sum, settings, lw] = await Promise.all([
+    getDailySummary(userId),
+    getSettings(userId),
+    latestWeight(userId),
+  ]);
+  const t = sum.target;
+  const cap = sum.effectiveTargetKcal ?? t.target;
+  const goal = t.manual
+    ? `cap manuel ${r(cap)} kcal/j`
+    : `${DIR_FR[t.direction]} — poids ${r(lw?.weightKg)} kg → cible ${r(settings.targetWeightKg)} kg (${settings.weeklyRateKg} kg/sem), cap ${r(cap)} kcal/j`;
+  return [
+    `Date du jour : ${todayISO()}.`,
+    `Profil/objectif : ${goal}.`,
+    `Aujourd'hui : ${r(sum.totals.kcal)} kcal consommées, ${sum.remainingKcal == null ? "?" : r(sum.remainingKcal)} restantes` +
+      ` · protéines ${r(sum.totals.proteinG)}${sum.macros.proteinG ? "/" + r(sum.macros.proteinG) : ""} g` +
+      ` · sucres ajoutés ${r(sum.totals.addedSugarsG)} g · sel ${r(sum.totals.saltG)} g` +
+      `${sum.activityKcal > 0 ? ` · sport +${r(sum.activityKcal)} kcal` : ""}.`,
+  ].join("\n");
+}
 
 export async function POST(req: Request) {
   const userId = await getCurrentUserId(req);
@@ -39,8 +68,9 @@ export async function POST(req: Request) {
     return Response.json({ error: "Dernier message utilisateur requis" }, { status: 400 });
   }
 
-  const system = `Tu es l'assistant nutrition de l'utilisateur connecté. Date du jour : ${todayISO()}.
+  const system = `Tu es l'assistant nutrition de l'utilisateur connecté.
 Tu peux, via les outils, enregistrer repas/poids/sport, définir l'objectif et consulter le bilan du jour.
+Le contexte du compte (objectif, bilan du jour, poids) t'est fourni à chaque message : appuie-toi dessus, ne redemande pas ce que tu sais déjà.
 Règles :
 - Aliment : d'abord search_foods. Absent → lookup_openfoodfacts ; sans résultat fiable → estime les macros toi-même puis create_food. Ensuite log_food avec foodId.
 - Code-barres scanné absent d'OpenFoodFacts : propose de le contribuer. N'appelle contribute_openfoodfacts QUE si l'utilisateur fournit les vraies valeurs de l'étiquette (jamais tes estimations : base publique partagée).
@@ -50,13 +80,19 @@ Règles :
 - Réponds en français, bref et concret. Confirme ce que tu as fait (kcal ajoutées, kcal restantes du jour).
 - Ne fais que ce qui est demandé ; n'invente pas de repas non mentionnés.`;
 
+  const context = await buildUserContext(userId);
   const client = new Anthropic();
 
   try {
     const finalMessage = await client.beta.messages.toolRunner({
       model: MODEL,
       max_tokens: 1024,
-      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+      // Bloc statique mis en cache (instructions + outils) ; contexte compte
+      // dynamique dans un 2e bloc non caché (change chaque jour / message).
+      system: [
+        { type: "text", text: system, cache_control: { type: "ephemeral" } },
+        { type: "text", text: `Contexte du compte :\n${context}` },
+      ],
       tools: buildTools(userId),
       messages,
       max_iterations: 8, // garde-fou boucle d'outils
