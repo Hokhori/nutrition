@@ -2,6 +2,7 @@ import { createMcpHandler, experimental_withMcpAuth } from "mcp-handler";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { registerTools } from "@/lib/mcp-tools";
 import { verifyMcpBearer } from "@/lib/auth";
+import { verifyAccessToken, resourceUrl } from "@/lib/oauth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,17 +23,27 @@ const handler = createMcpHandler(
   },
 );
 
-// Auth Bearer : seul le porteur du MCP_TOKEN peut appeler les outils.
+// Auth : deux voies acceptées.
+//  1) MCP_TOKEN statique (Mac / CI / curl).
+//  2) Access token OAuth (connecteur Claude sur mobile/desktop).
 const verifyToken = async (_req: Request, bearerToken?: string): Promise<AuthInfo | undefined> => {
-  if (!verifyMcpBearer(bearerToken)) return undefined;
-  return {
-    token: bearerToken as string,
-    clientId: "logan",
-    scopes: [],
-    extra: {},
-  };
+  if (!bearerToken) return undefined;
+  if (verifyMcpBearer(bearerToken)) {
+    return { token: bearerToken, clientId: "static", scopes: ["mcp"], extra: {} };
+  }
+  const sub = verifyAccessToken(bearerToken);
+  if (sub) {
+    return { token: bearerToken, clientId: "oauth", scopes: ["mcp"], extra: { sub } };
+  }
+  return undefined;
 };
 
-const authed = experimental_withMcpAuth(handler, verifyToken, { required: true });
+const authed = experimental_withMcpAuth(handler, verifyToken, {
+  required: true,
+  // Fait pointer le 401 vers les métadonnées de ressource protégée (déclenche
+  // la découverte OAuth côté client Claude).
+  resourceMetadataPath: "/.well-known/oauth-protected-resource",
+  resourceUrl: resourceUrl(),
+});
 
 export { authed as GET, authed as POST, authed as DELETE };
