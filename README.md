@@ -123,9 +123,20 @@ claude mcp add --transport http nutrition <PUBLIC_URL>/mcp \
 **App Claude (mobile/desktop) :** connecteur OAuth — voir le tutoriel intégré dans
 la page Profil (nécessite `OAUTH_CLIENT_ID/SECRET` + HTTPS).
 
-Outils exposés : `search_foods`, `lookup_openfoodfacts`, `create_food`,
-`update_food`, `log_food`, `list_entries`, `delete_entry`, `get_daily_summary`,
-`set_goal`, `log_weight`, `log_activity`, `get_progress`.
+Outils exposés : `search_foods`, `lookup_openfoodfacts`, `contribute_openfoodfacts`,
+`create_food`, `update_food`, `log_food`, `list_entries`, `delete_entry`,
+`get_daily_summary`, `set_goal`, `log_weight`, `log_activity`, `get_progress`.
+
+### Contribution OpenFoodFacts & scan de code-barres
+
+Si `OFF_USER` / `OFF_PASSWORD` (compte contributeur OpenFoodFacts) sont définis,
+l'app peut **ajouter des produits réels** à OpenFoodFacts via `contribute_openfoodfacts`
+(MCP et assistant). L'onglet **Assistant** propose un **scanner de code-barres**
+(caméra, HTTPS requis) : scannez un produit → l'assistant le cherche sur
+OpenFoodFacts, l'ajoute à vos aliments, et propose de le contribuer s'il est absent.
+⚠ Ne contribuez que des données **réelles lues sur l'étiquette**, jamais des
+estimations (base publique partagée). `OFF_WRITE_BASE=https://world.openfoodfacts.net`
+cible le sandbox pour tester.
 
 ## Assistant IA in-app
 

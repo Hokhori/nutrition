@@ -2,7 +2,8 @@
 
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Send, Sparkles } from "lucide-react";
+import { Send, Sparkles, ScanBarcode } from "lucide-react";
+import { BarcodeScanner } from "./BarcodeScanner";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -18,6 +19,7 @@ export function AssistantChat() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [scanning, setScanning] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,6 +48,13 @@ export function AssistantChat() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function onScanned(code: string) {
+    setScanning(false);
+    send(
+      `J'ai scanné le code-barres ${code}. Cherche-le sur OpenFoodFacts et ajoute-le à mes aliments. S'il est absent, aide-moi à le créer, puis propose de le contribuer à OpenFoodFacts.`,
+    );
   }
 
   return (
@@ -100,6 +109,15 @@ export function AssistantChat() {
         }}
         className="sticky bottom-16 mt-3 flex gap-2 sm:bottom-2"
       >
+        <button
+          type="button"
+          onClick={() => setScanning(true)}
+          disabled={loading}
+          aria-label="Scanner un code-barres"
+          className="btn btn-ghost shrink-0"
+        >
+          <ScanBarcode size={16} />
+        </button>
         <input
           className="input"
           placeholder="Écris à l'assistant…"
@@ -111,6 +129,8 @@ export function AssistantChat() {
           <Send size={16} />
         </button>
       </form>
+
+      {scanning && <BarcodeScanner onDetected={onScanned} onClose={() => setScanning(false)} />}
     </div>
   );
 }

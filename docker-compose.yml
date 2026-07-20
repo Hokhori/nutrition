@@ -30,6 +30,10 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
       APP_TZ: ${APP_TZ:-Europe/Brussels}
       OFF_USER_AGENT: ${OFF_USER_AGENT:-}
+      # Contribution OpenFoodFacts (facultatif)
+      OFF_USER: ${OFF_USER:-}
+      OFF_PASSWORD: ${OFF_PASSWORD:-}
+      OFF_WRITE_BASE: ${OFF_WRITE_BASE:-}
       # OAuth connecteur Claude (facultatif)
       OAUTH_CLIENT_ID: ${OAUTH_CLIENT_ID:-}
       OAUTH_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET:-}

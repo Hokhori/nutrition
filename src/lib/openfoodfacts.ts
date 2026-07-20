@@ -162,3 +162,90 @@ export async function lookup(q: string, limit = 5): Promise<OffCandidate[]> {
   }
   return searchByName(q, limit);
 }
+
+// --- Écriture (contribution) ----------------------------------------------
+
+export type ContributeInput = {
+  barcode: string;
+  name: string;
+  brand?: string | null;
+  quantity?: string | null; // ex : "500 g", "1 L"
+  categories?: string | null; // ex : "Biscuits, Gaufres"
+  per100: Per100;
+};
+
+export type ContributeResult = {
+  ok: boolean;
+  code: string;
+  url: string;
+  created: boolean; // vrai si le produit n'existait pas encore
+  status?: string;
+};
+
+/**
+ * Contribue / met à jour un produit sur OpenFoodFacts (API d'écriture v2).
+ * Requiert un compte contributeur (`OFF_USER` / `OFF_PASSWORD`, côté serveur).
+ * ⚠ Réservé aux produits RÉELS avec code-barres et données d'étiquette exactes —
+ * ne jamais pousser des macros estimées (base publique partagée).
+ * `OFF_WRITE_BASE` permet de cibler le staging (https://world.openfoodfacts.net).
+ */
+export async function contribute(input: ContributeInput): Promise<ContributeResult> {
+  const user = process.env.OFF_USER;
+  const password = process.env.OFF_PASSWORD;
+  if (!user || !password) {
+    throw new Error("Contribution OpenFoodFacts indisponible : OFF_USER / OFF_PASSWORD non configurés.");
+  }
+  const code = input.barcode.replace(/\D/g, "");
+  if (code.length < 8) throw new Error("Code-barres invalide (8 à 14 chiffres attendus).");
+  if (!input.name.trim()) throw new Error("Nom de produit requis.");
+
+  const base = (process.env.OFF_WRITE_BASE || "https://world.openfoodfacts.org").replace(/\/$/, "");
+  const existed = (await lookupByBarcode(code)) !== null;
+
+  const p = input.per100;
+  const body = new URLSearchParams();
+  body.set("code", code);
+  body.set("user_id", user);
+  body.set("password", password);
+  body.set("product_name", input.name.trim());
+  if (input.brand) body.set("brands", input.brand);
+  if (input.quantity) body.set("quantity", input.quantity);
+  if (input.categories) body.set("categories", input.categories);
+  body.set("nutrition_data_per", "100g");
+  body.set("nutriment_energy-kcal", String(p.kcal));
+  body.set("nutriment_energy-kcal_unit", "kcal");
+  // On ne pousse PAS les sucres ajoutés (souvent estimés) — seulement l'étiquette.
+  const grams: Record<string, number> = {
+    proteins: p.proteinG,
+    carbohydrates: p.carbsG,
+    sugars: p.sugarsG,
+    fat: p.fatG,
+    "saturated-fat": p.saturatedG,
+    fiber: p.fiberG,
+    salt: p.saltG,
+  };
+  for (const [k, v] of Object.entries(grams)) {
+    if (v > 0) body.set(`nutriment_${k}`, String(v));
+  }
+
+  const res = await fetch(`${base}/cgi/product_jqm2.pl`, {
+    method: "POST",
+    headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+    signal: AbortSignal.timeout(12000),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`OpenFoodFacts (écriture) HTTP ${res.status}`);
+  let status: string | undefined;
+  try {
+    const j = JSON.parse(text) as { status?: number; status_verbose?: string };
+    status = j.status_verbose;
+    if (j.status !== 1) throw new Error(`OpenFoodFacts a refusé l'enregistrement : ${status ?? "inconnu"}`);
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith("OpenFoodFacts a refusé")) throw e;
+    // Réponse non-JSON (HTML) = généralement un échec d'authentification.
+    throw new Error("Réponse inattendue d'OpenFoodFacts (vérifie OFF_USER / OFF_PASSWORD).");
+  }
+
+  return { ok: true, code, url: `${base}/product/${code}`, created: !existed, status };
+}

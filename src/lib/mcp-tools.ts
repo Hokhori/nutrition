@@ -92,6 +92,35 @@ export function registerTools(server: McpServer): void {
       }),
   );
 
+  // 2bis. Contribuer un produit à OpenFoodFacts (base publique partagée)
+  server.tool(
+    "contribute_openfoodfacts",
+    "Ajoute (ou met à jour) un produit RÉEL sur OpenFoodFacts, la base publique. À n'utiliser que pour un produit EMBALLÉ avec un code-barres et des valeurs LUES SUR L'ÉTIQUETTE (jamais des estimations : c'est une base partagée). Idéal après avoir scanné un code-barres absent d'OpenFoodFacts.",
+    {
+      barcode: z.string().min(8).describe("code-barres EAN (8 à 14 chiffres)"),
+      name: z.string().min(1).describe("nom exact du produit"),
+      brand: z.string().optional().describe("marque"),
+      quantity: z.string().optional().describe("quantité nette de l'emballage, ex '500 g', '1 L'"),
+      categories: z.string().optional().describe("catégories OFF, ex 'Biscuits, Gaufres'"),
+      per_100g: z.object(per100Shape),
+    },
+    async (args) =>
+      guard(async () => {
+        const r = await off.contribute({
+          barcode: args.barcode,
+          name: args.name,
+          brand: args.brand ?? null,
+          quantity: args.quantity ?? null,
+          categories: args.categories ?? null,
+          per100: args.per_100g,
+        });
+        return ok(
+          r,
+          `${r.created ? "Produit créé" : "Produit mis à jour"} sur OpenFoodFacts : ${r.url}`,
+        );
+      }),
+  );
+
   // 3. Créer un profil d'aliment
   server.tool(
     "create_food",

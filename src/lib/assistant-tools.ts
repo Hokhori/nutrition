@@ -46,6 +46,53 @@ export function buildTools(userId: number) {
     }),
 
     betaTool({
+      name: "contribute_openfoodfacts",
+      description:
+        "Ajoute/met à jour un produit RÉEL sur OpenFoodFacts (base publique). Uniquement pour un produit emballé avec code-barres et valeurs LUES SUR L'ÉTIQUETTE — jamais d'estimations. À utiliser après un scan de code-barres absent d'OFF.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          barcode: { type: "string", minLength: 8, description: "code-barres EAN (8 à 14 chiffres)" },
+          name: { type: "string" },
+          brand: { type: "string" },
+          quantity: { type: "string", description: "quantité nette, ex '500 g'" },
+          categories: { type: "string", description: "catégories OFF, ex 'Biscuits, Gaufres'" },
+          kcal: nn,
+          proteinG: nn,
+          carbsG: nn,
+          sugarsG: nn,
+          fatG: nn,
+          saturatedG: nn,
+          fiberG: nn,
+          saltG: nn,
+        },
+        required: ["barcode", "name", "kcal"],
+        additionalProperties: false,
+      },
+      run: async (a) => {
+        const r = await off.contribute({
+          barcode: a.barcode,
+          name: a.name,
+          brand: a.brand ?? null,
+          quantity: a.quantity ?? null,
+          categories: a.categories ?? null,
+          per100: {
+            kcal: a.kcal,
+            proteinG: a.proteinG ?? 0,
+            carbsG: a.carbsG ?? 0,
+            sugarsG: a.sugarsG ?? 0,
+            addedSugarsG: 0,
+            fatG: a.fatG ?? 0,
+            saturatedG: a.saturatedG ?? 0,
+            fiberG: a.fiberG ?? 0,
+            saltG: a.saltG ?? 0,
+          },
+        });
+        return JSON.stringify({ created: r.created, url: r.url });
+      },
+    }),
+
+    betaTool({
       name: "create_food",
       description:
         "Crée un profil d'aliment (macros pour 100 g). Utilise OpenFoodFacts si dispo, sinon tes meilleures estimations. Mets 0 pour les macros inconnues. addedSugarsG : pour un produit transformé/sucré (gaufre, biscuit, soda, bonbon, pâtisserie, céréales, chocolat, glace, yaourt sucré…) les sucres sont quasi tous AJOUTÉS → mets ≈ sugarsG ; 0 seulement pour fruits entiers, légumes, lait/yaourt nature.",
