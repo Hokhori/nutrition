@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import { getUserById } from "@/lib/services";
 import { oauthClientInfo } from "@/lib/oauth";
 import { McpSetup } from "@/components/McpSetup";
+import { AccountData } from "@/components/AccountData";
 import { logoutAction } from "@/app/login/actions";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,8 @@ export default async function ProfilePage() {
         oauthClientId={oauth.clientId}
         oauthClientSecret={oauth.clientSecret}
       />
+
+      <AccountData email={user.email} />
     </div>
   );
 }

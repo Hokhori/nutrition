@@ -59,6 +59,11 @@ export function AssistantChat() {
 
   return (
     <div className="flex flex-col" style={{ minHeight: "calc(100dvh - 12rem)" }}>
+      <p className="mb-3 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface-2)] px-3 py-2 text-xs text-[color:var(--color-muted)]">
+        Tu discutes avec une <strong className="text-[color:var(--color-fg)]">IA</strong> (assistant
+        automatisé). Le contenu de tes messages est envoyé au fournisseur du modèle pour générer la
+        réponse. Ses conseils sont indicatifs et ne remplacent pas un avis médical.
+      </p>
       <div className="flex-1 space-y-3">
         {messages.length === 0 && (
           <div className="card p-4 text-sm text-[color:var(--color-muted)]">

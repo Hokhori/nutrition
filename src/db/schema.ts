@@ -21,6 +21,10 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("user"), // 'admin' | 'user'
   status: text("status").notNull().default("active"), // 'active' | 'pending'
   mcpToken: text("mcp_token").notNull().unique(),
+  // Preuve de consentement RGPD (art. 7.1) recueilli à l'inscription : horodatage
+  // + version des documents acceptés (CGU / confidentialité / traitement santé).
+  consentAt: timestamp("consent_at", { withTimezone: true }),
+  consentVersion: text("consent_version"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

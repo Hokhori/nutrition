@@ -1,0 +1,51 @@
+# Conformité légale — nutrition.hokhori.be
+
+> ⚠️ Ces documents sont des **brouillons** préparés pour cadrer la mise en
+> conformité. Ils ne constituent pas un avis juridique. Faites-les valider par un
+> juriste / DPO avant un lancement public, l'application traitant des
+> **données de santé** (catégorie particulière, art. 9 RGPD).
+
+## Ce qui est couvert dans le code (fait)
+
+- [x] **Pages légales publiques** : `/legal/mentions`, `/legal/confidentialite`, `/legal/cgu`
+      (liens en pied de page, sur le login et l'inscription).
+- [x] **Consentement explicite** à l'inscription : CGU + confidentialité,
+      traitement des données de santé, âge ≥ 13 ans. Preuve horodatée en base
+      (`users.consent_at`, `users.consent_version`).
+- [x] **Droits RGPD self-service** dans `/profile` : export JSON (accès +
+      portabilité) et suppression de compte (effacement + retrait du consentement).
+- [x] **Disclaimer médical** (CGU + pied de page) et **transparence IA** sur
+      l'assistant.
+- [x] **Cookie** strictement nécessaire uniquement (pas de bannière requise).
+
+## Ce qui reste à faire (hors code — administratif / juridique)
+
+- [ ] **Renseigner l'identité de l'exploitant** dans `.env` du VPS :
+      `OPERATOR_NAME`, `OPERATOR_ADDRESS`, `OPERATOR_EMAIL`, `OPERATOR_LEGAL_ID`,
+      `OPERATOR_VAT`, `DPO_EMAIL` (si applicable). Tant que ces valeurs sont vides,
+      les mentions affichent « [à compléter] ».
+- [ ] **Signer les accords de sous-traitance (DPA)** :
+  - [ ] **Anthropic** — DPA + activer l'option **zéro-rétention / opt-out
+        entraînement** ; vérifier la base de transfert US (SCC / Data Privacy
+        Framework). Concerne l'assistant IA *et* le connecteur MCP.
+  - [ ] **Hetzner** — DPA (Auftragsverarbeitungsvertrag) disponible dans la
+        console.
+- [ ] **Compléter et tenir le registre des traitements** (`registre-des-traitements.md`).
+- [ ] **Finaliser l'AIPD / DPIA** (`aipd-dpia.md`) — probablement obligatoire
+      (données de santé à grande échelle).
+- [ ] **Procédure de violation de données** : qui, comment, notification à l'APD
+      sous 72 h. (Rappel : **roter la clé API Anthropic qui a fuité**.)
+- [ ] **Vérifier la classification « dispositif médical » (MDR)** : rester sur du
+      bien-être, sans allégation de diagnostic/traitement. OK en l'état.
+- [ ] Faire **relire le tout par un juriste / DPO**.
+
+## Autorité de contrôle
+
+Belgique — Autorité de protection des données (APD / GBA) :
+https://www.autoriteprotectiondonnees.be
+
+## Versionnement
+
+La version des documents légaux est `LEGAL_VERSION` dans `src/lib/legal.ts`.
+À incrémenter (nouvelle date) à chaque modification substantielle : le
+consentement des utilisateurs est horodaté avec cette version.

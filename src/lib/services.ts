@@ -21,6 +21,7 @@ import {
 } from "./nutrition";
 import { resolveDate, todayISO, addDaysISO, daysBetweenISO } from "./date";
 import { activityKcal } from "./activities";
+import { LEGAL_VERSION } from "./legal";
 import type {
   CreateFoodInput,
   UpdateFoodInput,
@@ -70,6 +71,8 @@ export async function createUser(input: {
   password: string;
   role?: Role;
   status?: "active" | "pending";
+  /** Consentement RGPD recueilli à l'inscription → horodaté avec la version en vigueur. */
+  consent?: boolean;
 }): Promise<User> {
   const [row] = await db
     .insert(users)
@@ -79,6 +82,8 @@ export async function createUser(input: {
       role: input.role ?? "user",
       status: input.status ?? "active",
       mcpToken: generateMcpToken(),
+      consentAt: input.consent ? new Date() : null,
+      consentVersion: input.consent ? LEGAL_VERSION : null,
     })
     .returning();
   // Crée d'emblée la ligne settings de l'utilisateur.
@@ -101,6 +106,42 @@ export async function setUserRole(id: number, role: Role): Promise<void> {
 
 export async function deleteUser(id: number): Promise<void> {
   await db.delete(users).where(eq(users.id, id));
+}
+
+/**
+ * Export complet des données personnelles d'un utilisateur (RGPD art. 15 & 20).
+ * Renvoie un objet JSON sérialisable regroupant compte, réglages, journaux et
+ * aliments créés. Le hash du mot de passe et le token MCP sont volontairement exclus.
+ */
+export async function exportUserData(userId: number): Promise<Record<string, unknown> | null> {
+  const user = await getUserById(userId);
+  if (!user) return null;
+  const [userSettings, entryRows, weightRows, activityRows, createdFoods] = await Promise.all([
+    db.select().from(settings).where(eq(settings.userId, userId)),
+    db.select().from(entries).where(eq(entries.userId, userId)).orderBy(asc(entries.consumedOn)),
+    db.select().from(weightLog).where(eq(weightLog.userId, userId)).orderBy(asc(weightLog.loggedOn)),
+    db.select().from(activities).where(eq(activities.userId, userId)).orderBy(asc(activities.performedOn)),
+    db.select().from(foods).where(eq(foods.createdBy, userId)).orderBy(asc(foods.id)),
+  ]);
+
+  return {
+    exportedAt: new Date().toISOString(),
+    format: "nutrition-user-export/v1",
+    account: {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      consentAt: user.consentAt?.toISOString() ?? null,
+      consentVersion: user.consentVersion ?? null,
+      createdAt: user.createdAt.toISOString(),
+    },
+    settings: userSettings[0] ?? null,
+    entries: entryRows,
+    weightLog: weightRows,
+    activities: activityRows,
+    foodsCreated: createdFoods,
+  };
 }
 
 export async function regenerateMcpToken(id: number): Promise<string> {

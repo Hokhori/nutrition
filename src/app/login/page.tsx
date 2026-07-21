@@ -2,11 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { LoginForm } from "./LoginForm";
+import { Footer } from "@/components/Footer";
 
 export default async function LoginPage() {
   if (await getSessionUser()) redirect("/");
   return (
-    <main className="min-h-dvh flex items-center justify-center p-6">
+    <main className="min-h-dvh flex flex-col items-center justify-center p-6">
       <div className="card w-full max-w-sm p-6">
         <div className="mb-6 text-center">
           <div className="text-2xl font-bold">🥗 Nutrition</div>
@@ -21,6 +22,9 @@ export default async function LoginPage() {
             Créer un compte
           </Link>
         </p>
+      </div>
+      <div className="w-full max-w-sm">
+        <Footer />
       </div>
     </main>
   );
