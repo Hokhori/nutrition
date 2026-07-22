@@ -10,6 +10,12 @@ export const dynamic = "force-dynamic";
 // Bon compromis qualité/coût pour l'usage d'outils et l'estimation des macros.
 const MODEL = "claude-sonnet-5";
 const MAX_HISTORY = 12; // borne l'historique renvoyé au modèle (tokens)
+// Un seul message peut contenir plusieurs repas ; le prompt décompose chaque
+// plat en ingrédients (2-4 appels d'outils chacun). Ces bornes doivent laisser
+// finir un message dense, sinon le tour final est tronqué et ne renvoie AUCUN
+// texte (reply « (pas de réponse) ») avec des repas à moitié enregistrés.
+const MAX_TOKENS = 4096;
+const MAX_ITERATIONS = 24;
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
@@ -88,7 +94,7 @@ Règles :
   try {
     const finalMessage = await client.beta.messages.toolRunner({
       model: MODEL,
-      max_tokens: 1024,
+      max_tokens: MAX_TOKENS,
       // Bloc statique mis en cache (instructions + outils) ; contexte compte
       // dynamique dans un 2e bloc non caché (change chaque jour / message).
       system: [
@@ -97,7 +103,7 @@ Règles :
       ],
       tools: buildTools(userId),
       messages,
-      max_iterations: 8, // garde-fou boucle d'outils
+      max_iterations: MAX_ITERATIONS, // garde-fou boucle d'outils
     });
 
     const text = finalMessage.content
@@ -106,8 +112,20 @@ Règles :
       .join("\n")
       .trim();
 
+    // Si toolRunner s'arrête en pleine boucle d'outils (limite d'itérations ou
+    // de tokens atteinte), le dernier tour n'a pas de texte : une partie des
+    // repas est enregistrée mais le récap manque. On le dit au lieu d'un
+    // « (pas de réponse) » opaque.
+    const truncated =
+      finalMessage.stop_reason === "tool_use" || finalMessage.stop_reason === "max_tokens";
+    const reply =
+      text ||
+      (truncated
+        ? "J'ai enregistré une partie de tes repas, mais ton message en contenait beaucoup d'un coup. Vérifie ton journal et renvoie-moi ce qu'il reste (ou sépare en 2-3 messages)."
+        : "(pas de réponse)");
+
     return Response.json({
-      reply: text || "(pas de réponse)",
+      reply,
       usage: {
         input: finalMessage.usage.input_tokens,
         output: finalMessage.usage.output_tokens,

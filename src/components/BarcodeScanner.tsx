@@ -2,7 +2,24 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BrowserMultiFormatReader, type IScannerControls } from "@zxing/browser";
+import { BarcodeFormat, DecodeHintType } from "@zxing/library";
 import { X, Keyboard } from "lucide-react";
+
+// Formats de codes-barres produits (EPC/EAN/UPC). On exclut QR, Code128, ITF…
+// qui, essayés par défaut, ralentissent l'accroche et produisent des lectures
+// parasites acceptées à tort après nettoyage des non-chiffres.
+const HINTS = new Map<DecodeHintType, unknown>([
+  [
+    DecodeHintType.POSSIBLE_FORMATS,
+    [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E],
+  ],
+  [DecodeHintType.TRY_HARDER, true],
+]);
+
+// Nombre de lectures IDENTIQUES consécutives exigées avant d'accepter un code.
+// Une seule frame floue peut mal décoder (et passer le checksum) : la double
+// confirmation élimine les codes erronés isolés.
+const CONFIRMATIONS = 2;
 
 /**
  * Scanner de code-barres via la caméra (ZXing). Marche sur iOS/Android en HTTPS.
@@ -19,10 +36,19 @@ export function BarcodeScanner({
   const [error, setError] = useState<string | null>(null);
   const [manual, setManual] = useState("");
 
+  // onDetected via ref : évite de relancer la caméra à chaque rendu du parent
+  // (le handler est recréé à chaque render et n'a pas à figurer en dépendance).
+  const onDetectedRef = useRef(onDetected);
   useEffect(() => {
-    const reader = new BrowserMultiFormatReader();
+    onDetectedRef.current = onDetected;
+  }, [onDetected]);
+
+  useEffect(() => {
+    const reader = new BrowserMultiFormatReader(HINTS);
     let controls: IScannerControls | null = null;
     let done = false;
+    let lastCode = "";
+    let streak = 0;
 
     reader
       .decodeFromConstraints(
@@ -32,20 +58,25 @@ export function BarcodeScanner({
           if (!result || done) return;
           const code = result.getText().replace(/\D/g, "");
           if (code.length < 8) return;
+          // Exige N lectures identiques d'affilée avant de valider.
+          streak = code === lastCode ? streak + 1 : 1;
+          lastCode = code;
+          if (streak < CONFIRMATIONS) return;
           done = true;
           controls?.stop();
-          onDetected(code);
+          onDetectedRef.current(code);
         },
       )
       .then((c) => {
         controls = c;
+        if (done) c.stop(); // code déjà validé pendant l'init : ne pas laisser tourner
       })
       .catch(() =>
         setError("Caméra inaccessible. Autorise l'accès (HTTPS requis) ou saisis le code à la main."),
       );
 
     return () => controls?.stop();
-  }, [onDetected]);
+  }, []);
 
   function submitManual(e: React.FormEvent) {
     e.preventDefault();
