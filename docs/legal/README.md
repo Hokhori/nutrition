@@ -33,8 +33,10 @@
 - [ ] **Compléter et tenir le registre des traitements** (`registre-des-traitements.md`).
 - [ ] **Finaliser l'AIPD / DPIA** (`aipd-dpia.md`) — probablement obligatoire
       (données de santé à grande échelle).
-- [ ] **Procédure de violation de données** : qui, comment, notification à l'APD
-      sous 72 h. (Rappel : **roter la clé API Anthropic qui a fuité**.)
+- [x] **Procédure de violation de données** (72 h) : voir
+      `procedure-violation-donnees.md` (playbook, critères de risque, modèles de
+      notification APD/personnes, registre des violations). ✅ Clé API Anthropic
+      ayant fuité : **rotée**.
 - [ ] **Vérifier la classification « dispositif médical » (MDR)** : rester sur du
       bien-être, sans allégation de diagnostic/traitement. OK en l'état.
 - [ ] Faire **relire le tout par un juriste / DPO**.
