@@ -42,7 +42,8 @@
 
 ## 4. Mesures et plan d'action
 
-- [x] DPA Anthropic + SCC : acquis via les Commercial ToS (compte API). Reste le DPA Hetzner à signer.
+- [x] DPA Anthropic + SCC : acquis via les Commercial ToS (compte API).
+- [x] DPA Hetzner (AVV) : conclu le 2026-07-22 (périmètre incluant données de santé).
 - [ ] Définir la durée de rétention des journaux techniques.
 - [ ] Roter/révoquer la clé API Anthropic exposée.
 - [ ] Mettre en place la procédure de notification de violation (72 h).

@@ -87,6 +87,15 @@ sa propre clé. L'éditeur est responsable, Anthropic est sous-traitant.
 | Transferts hors UE | Le cas échéant, sous la responsabilité et les conditions propres de l'utilisateur |
 | Information | Rappelé à l'utilisateur dans la politique de confidentialité |
 
+---
+
+## Sous-traitants (récapitulatif, art. 28)
+
+| Sous-traitant | Objet | Localisation | Encadrement | Statut |
+| --- | --- | --- | --- | --- |
+| **Hetzner Online GmbH** | Hébergement (VPS + base Postgres) | Allemagne (UE) | DPA (AVV) conclu **le 2026-07-22** via le compte Hetzner ; périmètre incluant les données de santé ; PDF archivé | ✅ Conclu |
+| **Anthropic, PBC** | Assistant IA in-app (API) | États-Unis | DPA + SCC incorporés aux *Commercial Terms of Service* (compte API) ; entraînement exclu par défaut | ✅ Acquis |
+
 ## Traitement 5 — Catalogue d'aliments & contribution OpenFoodFacts (si activée)
 
 | Élément | Détail |
