@@ -92,14 +92,23 @@ export default function ConfidentialitePage() {
         </li>
         {ai ? (
           <li>
-            <strong>Anthropic, PBC (États-Unis)</strong> — fournit l’assistant conversationnel et le
-            connecteur IA. Lorsque vous utilisez l’assistant, le contenu de vos messages (par ex. la
-            description de vos repas, votre poids) est transmis à Anthropic pour générer la réponse.
-            Ce traitement fait l’objet d’un accord de sous-traitance (DPA) et l’usage de vos données
-            pour l’entraînement de modèles est désactivé. L’assistant IA est facultatif : vous
-            pouvez utiliser l’application sans jamais l’utiliser.
+            <strong>Anthropic, PBC (États-Unis)</strong> — fournit l’<strong>assistant IA in-app</strong>.
+            Lorsque vous utilisez cet assistant intégré au site, le contenu de vos messages (par ex.
+            la description de vos repas, votre poids) est transmis à Anthropic pour générer la
+            réponse. Ce traitement fait l’objet d’un accord de sous-traitance (DPA, avec clauses
+            contractuelles types) conclu par l’éditeur, et l’usage de vos données pour l’entraînement
+            de modèles est désactivé. L’assistant IA est facultatif.
           </li>
         ) : null}
+        <li>
+          <strong>Connecteur MCP (à votre initiative)</strong> — si vous branchez votre propre
+          assistant IA (par ex. l’application Claude, via votre abonnement personnel) sur le
+          connecteur MCP de l’application, les données que vous consultez ou dictez transitent alors
+          vers <strong>votre</strong> fournisseur d’IA, sous <strong>votre</strong> propre relation
+          contractuelle avec lui. Ce traitement n’est <strong>pas</strong> couvert par le DPA de
+          l’éditeur ni réalisé par l’application : il relève de vous et du fournisseur que vous
+          choisissez. L’usage du MCP est entièrement facultatif.
+        </li>
         {off ? (
           <li>
             <strong>OpenFoodFacts</strong> — base de données alimentaire ouverte. Les produits que
@@ -117,11 +126,17 @@ export default function ConfidentialitePage() {
         <>
           <h2>5. Transferts hors Union européenne</h2>
           <p>
-            L’usage de l’assistant IA implique un transfert de données vers{" "}
-            <strong>Anthropic aux États-Unis</strong>. Ce transfert est encadré par les{" "}
-            <strong>clauses contractuelles types</strong> de la Commission européenne et/ou le{" "}
-            <em>Data Privacy Framework</em>, garantissant un niveau de protection approprié. En
-            dehors de ce cas, vos données restent hébergées dans l’Union européenne.
+            L’usage de l’<strong>assistant IA in-app</strong> implique un transfert de données vers{" "}
+            <strong>Anthropic aux États-Unis</strong>. Ce transfert, réalisé par l’éditeur, est
+            encadré par les <strong>clauses contractuelles types</strong> de la Commission
+            européenne (et, le cas échéant, le <em>Data Privacy Framework</em>), garantissant un
+            niveau de protection approprié.
+          </p>
+          <p>
+            Si vous utilisez le <strong>connecteur MCP</strong> avec votre propre assistant IA, le
+            transfert éventuel hors UE dépend du fournisseur que <strong>vous</strong> choisissez et
+            de vos propres conditions avec lui ; il n’est pas réalisé ni encadré par l’éditeur. En
+            dehors de ces cas, vos données restent hébergées dans l’Union européenne.
           </p>
         </>
       ) : (

@@ -53,17 +53,36 @@
 | Transferts hors UE | Aucun |
 | Durée de conservation | Durée limitée (*à préciser, ex. 30–90 j*) |
 
-## Traitement 4 — Assistant IA / connecteur MCP (si activé)
+## Traitement 4a — Assistant IA in-app (si activé)
+
+Traitement réalisé **par l'éditeur** : l'application appelle l'API Anthropic avec
+sa propre clé. L'éditeur est responsable, Anthropic est sous-traitant.
 
 | Élément | Détail |
 | --- | --- |
-| Finalité | Saisie et consultation en langage naturel via un modèle de langage |
-| Base légale | Consentement (art. 9.2.a) — l'usage est facultatif et à l'initiative de l'utilisateur |
+| Finalité | Saisie et consultation en langage naturel via l'assistant intégré au site |
+| Base légale | Consentement (art. 9.2.a) — usage facultatif |
 | Catégories de données | Contenu des messages (peut inclure des données de santé) |
 | Sous-traitant | **Anthropic, PBC (États-Unis)** |
 | Transferts hors UE | Oui → **SCC** via le **DPA Anthropic** (incorporé aux *Commercial Terms of Service* acceptés à l'ouverture du compte API) |
 | Entraînement modèles | Exclu par défaut sur l'API commerciale |
 | Durée de conservation | Rétention par défaut d'Anthropic (~30 j) ; Zero Data Retention disponible sur demande (optionnel) |
+
+## Traitement 4b — Connecteur MCP (à l'initiative de l'utilisateur)
+
+> **Précision importante :** le DPA de l'éditeur couvre **uniquement** l'assistant
+> IA in-app (traitement 4a). Si un utilisateur branche **son propre** assistant IA
+> (ex. l'application Claude via son abonnement personnel) sur le connecteur MCP, les
+> données transitent vers **son** fournisseur d'IA, sous **sa propre** relation
+> contractuelle. Ce transfert n'est **ni réalisé ni couvert par l'éditeur** : le
+> responsable de cette transmission est l'utilisateur, pas l'application.
+
+| Élément | Détail |
+| --- | --- |
+| Rôle de l'éditeur | Fournit l'accès MCP (authentifié) à l'utilisateur ; ne transmet rien à un fournisseur d'IA tiers de sa propre initiative |
+| Fournisseur d'IA | Celui choisi par l'utilisateur (hors périmètre de l'éditeur) |
+| Transferts hors UE | Le cas échéant, sous la responsabilité et les conditions propres de l'utilisateur |
+| Information | Rappelé à l'utilisateur dans la politique de confidentialité |
 
 ## Traitement 5 — Catalogue d'aliments & contribution OpenFoodFacts (si activée)
 
