@@ -36,8 +36,12 @@
       DPA : https://www.anthropic.com/legal/commercial-terms
   - [ ] *(optionnel)* Demander le **Zero Data Retention (ZDR)** à Anthropic si on
         veut supprimer la rétention par défaut (~30 j). Non requis, mais un plus.
-- [ ] **Signer le DPA Hetzner** (Auftragsverarbeitungsvertrag) — disponible dans
-      la console (hébergeur des données, UE).
+- [ ] **Conclure le DPA Hetzner** (AVV, art. 28) — pas de signature individuelle :
+      il se conclut en **libre-service dans le compte** →
+      https://accounts.hetzner.com/account/dpa (accepter le contrat type). Modèle :
+      https://www.hetzner.com/AV/DPA_en.pdf. Hébergeur en Allemagne (UE) → pas de
+      transfert pays tiers. Après conclusion : archiver le PDF et le référencer
+      dans le registre (traitement « Hébergement »).
 - [ ] **Compléter et tenir le registre des traitements** (`registre-des-traitements.md`).
 - [ ] **Finaliser l'AIPD / DPIA** (`aipd-dpia.md`) — probablement obligatoire
       (données de santé à grande échelle).
