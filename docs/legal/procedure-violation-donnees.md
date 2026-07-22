@@ -9,9 +9,9 @@
 
 | Rôle | Personne | Responsabilité |
 | --- | --- | --- |
-| Responsable de traitement | *[OPERATOR_NAME]* | Décision de notifier, communication à l'APD |
-| Point de contact / DPO | *[DPO_EMAIL ou OPERATOR_EMAIL]* | Coordination, tenue du registre des violations |
-| Technique | *[admin VPS]* | Confinement, investigation, rotation des secrets |
+| Responsable de traitement | Logan Hendryckx | Décision de notifier, communication à l'APD |
+| Point de contact RGPD | privacy@hokhori.be | Coordination, tenue du registre des violations |
+| Technique | Logan Hendryckx (admin VPS Hokhori) | Confinement, investigation, rotation des secrets |
 
 Contact unique pour signalement interne/externe : voir `SECURITY.md` du dépôt.
 

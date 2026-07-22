@@ -40,6 +40,16 @@ services:
       OAUTH_JWT_SECRET: ${OAUTH_JWT_SECRET:-}
       # Assistant IA in-app (facultatif)
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Mentions légales / RGPD (affichées dans /legal/*)
+      SITE_NAME: ${SITE_NAME:-Nutrition}
+      OPERATOR_NAME: ${OPERATOR_NAME:-}
+      OPERATOR_ADDRESS: ${OPERATOR_ADDRESS:-}
+      OPERATOR_EMAIL: ${OPERATOR_EMAIL:-}
+      OPERATOR_LEGAL_ID: ${OPERATOR_LEGAL_ID:-}
+      OPERATOR_VAT: ${OPERATOR_VAT:-}
+      OPERATOR_JURISDICTION: ${OPERATOR_JURISDICTION:-Belgique}
+      DPO_EMAIL: ${DPO_EMAIL:-}
+      HOSTING_PROVIDER: ${HOSTING_PROVIDER:-}
     ports:
       - "${APP_PORT:-3000}:3000"
 

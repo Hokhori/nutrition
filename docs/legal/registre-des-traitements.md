@@ -1,18 +1,21 @@
 # Registre des activités de traitement (RGPD art. 30)
 
-> Brouillon à compléter avec l'identité réelle de l'exploitant, puis à tenir à
-> jour. Obligatoire ici car des **données de santé** sont traitées de façon non
-> occasionnelle (l'exemption « < 250 salariés » ne s'applique pas, art. 30.5).
+> À tenir à jour. Obligatoire ici car des **données de santé** sont traitées de
+> façon non occasionnelle (l'exemption « < 250 salariés » ne s'applique pas,
+> art. 30.5).
+>
+> Version : 2026-07-22.
 
 ## Responsable du traitement
 
 | Champ | Valeur |
 | --- | --- |
-| Nom / raison sociale | *[OPERATOR_NAME]* |
-| Adresse | *[OPERATOR_ADDRESS]* |
-| Contact | *[OPERATOR_EMAIL]* |
-| N° d'entreprise (BCE/KBO) | *[OPERATOR_LEGAL_ID]* |
-| DPO / point de contact RGPD | *[DPO_EMAIL — ou « non désigné »]* |
+| Responsable | Logan Hendryckx (personne physique / indépendant) |
+| Adresse | Avenue Ferdauci 1, 1020 Laeken, Belgique |
+| Contact RGPD | privacy@hokhori.be |
+| N° d'entreprise (BCE/KBO) | BE 1038.257.712 |
+| N° de TVA | BE 1038.257.712 |
+| DPO | Non désigné (non requis à ce stade — pas de traitement à grande échelle au sens de l'art. 37 ; le contact RGPD ci-dessus fait office de point de contact) |
 
 ---
 
@@ -51,7 +54,7 @@
 | Catégories de données | Adresse IP, horodatage, métadonnées de requêtes |
 | Destinataires | Hébergeur (Hetzner, UE) |
 | Transferts hors UE | Aucun |
-| Durée de conservation | Durée limitée (*à préciser, ex. 30–90 j*) |
+| Durée de conservation | **30 jours** (à aligner sur la rotation des logs Caddy/Docker) |
 
 ## Traitement 4a — Assistant IA in-app (si activé)
 
