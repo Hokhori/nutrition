@@ -61,8 +61,9 @@
 | Base légale | Consentement (art. 9.2.a) — l'usage est facultatif et à l'initiative de l'utilisateur |
 | Catégories de données | Contenu des messages (peut inclure des données de santé) |
 | Sous-traitant | **Anthropic, PBC (États-Unis)** |
-| Transferts hors UE | Oui → **SCC / Data Privacy Framework** ; DPA + opt-out entraînement |
-| Durée de conservation | Selon la politique d'Anthropic (viser zéro-rétention) |
+| Transferts hors UE | Oui → **SCC** via le **DPA Anthropic** (incorporé aux *Commercial Terms of Service* acceptés à l'ouverture du compte API) |
+| Entraînement modèles | Exclu par défaut sur l'API commerciale |
+| Durée de conservation | Rétention par défaut d'Anthropic (~30 j) ; Zero Data Retention disponible sur demande (optionnel) |
 
 ## Traitement 5 — Catalogue d'aliments & contribution OpenFoodFacts (si activée)
 

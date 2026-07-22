@@ -35,14 +35,14 @@
 | --- | --- | --- | --- |
 | Accès non autorisé aux données de santé | Élevée | Moyenne | HTTPS, hash scrypt, cookie httpOnly/secure, cloisonnement `user_id`, jetons révocables |
 | Fuite d'un jeton MCP/OAuth | Élevée | Moyenne | Jeton par utilisateur, régénérable ; portée limitée au compte |
-| Transfert hors UE via l'assistant IA | Élevée | Moyenne | Usage facultatif + consenti ; SCC/DPF ; DPA ; opt-out entraînement ; viser zéro-rétention |
+| Transfert hors UE via l'assistant IA | Élevée | Moyenne | Usage facultatif + consenti ; **DPA Anthropic + SCC acquis** (Commercial ToS) ; entraînement exclu par défaut ; ZDR possible sur demande |
 | Exposition d'un secret (clé API, etc.) | Élevée | Faible→réelle | `.env` en 600, secrets hors dépôt ; **roter la clé Anthropic ayant fuité** |
 | Données de tiers dans le catalogue partagé / OFF | Moyenne | Faible | Consigne « pas de données personnelles » dans les CGU |
 | Absence d'administrateur après suppression | Moyenne | Faible | Garde-fou : refus de supprimer le dernier admin |
 
 ## 4. Mesures et plan d'action
 
-- [ ] Signer les DPA (Anthropic, Hetzner) et documenter les garanties de transfert.
+- [x] DPA Anthropic + SCC : acquis via les Commercial ToS (compte API). Reste le DPA Hetzner à signer.
 - [ ] Définir la durée de rétention des journaux techniques.
 - [ ] Roter/révoquer la clé API Anthropic exposée.
 - [ ] Mettre en place la procédure de notification de violation (72 h).

@@ -24,12 +24,18 @@
       `OPERATOR_NAME`, `OPERATOR_ADDRESS`, `OPERATOR_EMAIL`, `OPERATOR_LEGAL_ID`,
       `OPERATOR_VAT`, `DPO_EMAIL` (si applicable). Tant que ces valeurs sont vides,
       les mentions affichent « [à compléter] ».
-- [ ] **Signer les accords de sous-traitance (DPA)** :
-  - [ ] **Anthropic** — DPA + activer l'option **zéro-rétention / opt-out
-        entraînement** ; vérifier la base de transfert US (SCC / Data Privacy
-        Framework). Concerne l'assistant IA *et* le connecteur MCP.
-  - [ ] **Hetzner** — DPA (Auftragsverarbeitungsvertrag) disponible dans la
-        console.
+- [x] **DPA Anthropic** — **acquis automatiquement** : le DPA (avec SCC) est
+      incorporé aux *Commercial Terms of Service*, acceptés en créant le compte
+      API (produit commercial). Base de transfert US = **SCC**. Entraînement sur
+      les données **exclu par défaut** en commercial. Concerne l'assistant in-app
+      (clé API = responsable → sous-traitant). Le connecteur MCP via l'app Claude
+      perso de l'utilisateur relève de la relation *utilisateur ↔ Anthropic*
+      (mentionné dans la politique de confidentialité).
+      DPA : https://www.anthropic.com/legal/commercial-terms
+  - [ ] *(optionnel)* Demander le **Zero Data Retention (ZDR)** à Anthropic si on
+        veut supprimer la rétention par défaut (~30 j). Non requis, mais un plus.
+- [ ] **Signer le DPA Hetzner** (Auftragsverarbeitungsvertrag) — disponible dans
+      la console (hébergeur des données, UE).
 - [ ] **Compléter et tenir le registre des traitements** (`registre-des-traitements.md`).
 - [ ] **Finaliser l'AIPD / DPIA** (`aipd-dpia.md`) — probablement obligatoire
       (données de santé à grande échelle).
