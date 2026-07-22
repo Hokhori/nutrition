@@ -23,9 +23,7 @@
 - [x] **Identité de l'exploitant renseignée** dans le `.env` du VPS
       (Logan Hendryckx, Avenue Ferdauci 1, 1020 Laeken ; BCE/TVA BE 1038.257.712 ;
       contact `privacy@hokhori.be`). Mentions et confidentialité affichent la vraie
-      identité. ⚠ **Créer/activer l'adresse `privacy@hokhori.be`** dans Proton
-      (adresse supplémentaire, catch-all, ou alias) pour qu'elle reçoive bien —
-      sinon basculer sur une adresse existante (1 ligne dans le `.env`).
+      identité. Adresse `privacy@hokhori.be` **créée et active** (2026-07-22).
 - [x] **DPA Anthropic** — **acquis automatiquement** : le DPA (avec SCC) est
       incorporé aux *Commercial Terms of Service*, acceptés en créant le compte
       API (produit commercial). Base de transfert US = **SCC**. Entraînement sur
