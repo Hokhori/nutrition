@@ -120,6 +120,6 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -p "${{ secrets.DEPLOY_PORT }}" -o IdentitiesOnly=yes \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "set -e; echo '$GHCR_TOKEN' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin; \
+            "set -e; export DOCKER_CONFIG=\$(mktemp -d); trap 'rm -rf \$DOCKER_CONFIG' EXIT; echo '$GHCR_TOKEN' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin; \
              cd '${{ vars.DEPLOY_STACK_DIR }}'; docker compose pull app; docker compose up -d; \
-             docker compose ps; docker image prune -f; docker logout ghcr.io"
+             docker compose ps"
