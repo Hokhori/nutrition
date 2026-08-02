@@ -6,6 +6,8 @@ import { getDailySummary } from "@/lib/services";
 import { resolveDate, todayISO, addDaysISO } from "@/lib/date";
 import { frDate, fmt } from "@/lib/format";
 import { KcalRing } from "@/components/KcalRing";
+import { KcalGauge, KcalZoneStatus } from "@/components/KcalGauge";
+import { computeCalorieZones } from "@/lib/calorie-zones";
 import { MacroBar } from "@/components/MacroBar";
 import { QuickAdd } from "@/components/QuickAdd";
 import { EntryList } from "@/components/EntryList";
@@ -29,6 +31,15 @@ export default async function DashboardPage({
   const showZone = min !== null && cap !== null;
   const capAboveFloor = min !== null && cap !== null && cap > min;
   const showActivity = summary.activityKcal > 0 && target.target !== null;
+  // Paliers caloriques du jour (jauge verticale). null = pas assez de données.
+  const zones = computeCalorieZones({
+    consumedKcal: totals.kcal,
+    bmrKcal: min,
+    tdeeKcal: target.tdee,
+    targetKcal: cap,
+    activityKcal: summary.activityKcal,
+    direction: target.direction,
+  });
   const showSedentary =
     summary.sedentaryKcal !== null &&
     target.target !== null &&
@@ -62,7 +73,10 @@ export default async function DashboardPage({
       {/* Anneau calorique + macros */}
       <div className="card p-5">
         <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center">
-          <KcalRing consumed={totals.kcal} target={summary.effectiveTargetKcal} />
+          <div className="flex shrink-0 items-center gap-3">
+            {zones && <KcalGauge zones={zones} isToday={date === today} />}
+            <KcalRing consumed={totals.kcal} target={summary.effectiveTargetKcal} />
+          </div>
           <div className="w-full flex-1 space-y-2.5">
             <MacroBar label="Protéines" value={totals.proteinG} target={macros.proteinG} />
             <MacroBar label="Glucides" value={totals.carbsG} target={macros.carbsG} />
@@ -73,7 +87,8 @@ export default async function DashboardPage({
             <MacroBar label="Sel" value={totals.saltG} target={macros.saltMaxG} kind="limit" />
           </div>
         </div>
-        {target.direction === "gain" && cap !== null && (
+        {zones && <KcalZoneStatus zones={zones} isToday={date === today} />}
+        {!zones && target.direction === "gain" && cap !== null && (
           <div className="mt-4 flex flex-col items-center gap-0.5 border-t border-[color:var(--color-border)] pt-3 text-sm">
             <div className="flex flex-wrap items-center justify-center gap-x-2 text-[color:var(--color-muted)]">
               <span>📈 Objectif prise de poids — vise</span>
@@ -84,7 +99,7 @@ export default async function DashboardPage({
             </div>
           </div>
         )}
-        {target.direction !== "gain" && showZone && (
+        {!zones && target.direction !== "gain" && showZone && (
           <div className="mt-4 flex flex-col items-center gap-0.5 border-t border-[color:var(--color-border)] pt-3 text-sm">
             {capAboveFloor ? (
               <div className="flex flex-wrap items-center justify-center gap-x-2 text-[color:var(--color-muted)]">
