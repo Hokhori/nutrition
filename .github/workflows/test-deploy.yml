@@ -210,7 +210,7 @@ jobs:
             set -a; . ${{ env.REMOTE_STACK }}/.env.app; \
             DATABASE_URL=\$(hokhori-testdb url nutrition); set +a; bash -s"
 
-      # Santé mesurée en loopback, donc sans traverser le basic auth : on teste
+      # Santé mesurée en loopback, donc sans traverser la porte d'accès : on teste
       # l'application, pas le reverse proxy.
       - name: Attente de disponibilité
         run: |
@@ -230,7 +230,7 @@ jobs:
 
       # Un code HTTP ne prouve pas qu'on peut se SERVIR de l'environnement.
       # Cette étape rejoue un vrai geste applicatif — typiquement une connexion
-      # — depuis le serveur, en loopback (donc sans basic auth) mais AVEC
+      # — depuis le serveur, en loopback (donc sans la porte d'accès) mais AVEC
       # l'en-tête Origin qu'enverrait un navigateur. C'est ce qui manquait le
       # 2026-08-21 : la connexion passait en curl nu et échouait en navigateur
       # (INVALID_ORIGIN), l'image ayant été compilée avec la mauvaise URL.
@@ -247,16 +247,27 @@ jobs:
                  exit 1; }
           echo "geste applicatif validé"
 
-      # L'environnement de test ne doit jamais être ouvert : un 401 prouve que
-      # le basic auth est en place. Un 200 ici serait une régression de sécurité.
+      # L'environnement de test ne doit jamais être ouvert : un 403 prouve que la
+      # porte d'accès est en place. Un 200 ici serait une régression de sécurité.
+      #
+      # 403 et non 401 depuis le 2026-08-23 : le basic auth a été remplacé par
+      # une porte à cookie. Un 401 partagerait l'origine avec l'authentification
+      # de l'application — quand celle-ci refuse un mot de passe, elle répond
+      # elle-même 401, le navigateur jette ses identifiants mis en cache, et
+      # l'utilisateur tombe dans une boucle « identifiants → pop-up ». Aucun
+      # navigateur ne redemande jamais rien sur un 403.
+      #
+      # Un 401 ici serait donc une régression : il signifierait que le basic
+      # auth est revenu.
       - name: Vérification de la protection publique
         run: |
           HTTP=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 ${{ env.TEST_URL }} || echo "000")
-          if [[ "$HTTP" != "401" ]]; then
-            echo "attendu 401 sur ${{ env.TEST_URL }}, obtenu $HTTP — l'environnement de test n'est pas protégé" >&2
+          if [[ "$HTTP" != "403" ]]; then
+            echo "attendu 403 sur ${{ env.TEST_URL }}, obtenu $HTTP — l'environnement de test n'est pas protégé" >&2
+            [[ "$HTTP" == "401" ]] && echo "un 401 signale un retour au basic auth : voir serveur-build-test.md" >&2
             exit 1
           fi
-          echo "protection confirmée (HTTP 401)"
+          echo "protection confirmée (HTTP 403)"
 
       - name: Récapitulatif
         if: always()
@@ -264,7 +275,7 @@ jobs:
           {
             echo "### Environnement de test"
             echo
-            echo "- URL : ${{ env.TEST_URL }} (basic auth, identifiant \`hokhori\`)"
+            echo "- URL : ${{ env.TEST_URL }} (porte d'accès par cookie — ouvrir avec /__acces?k=<clé>)"
             echo "- Image : \`ghcr.io/${GITHUB_REPOSITORY,,}:test-${{ github.sha }}\`"
             echo "- Base : \`nutrition_test\` sur le Postgres jetable de hokhori-build"
             echo "- Comptes : ceux du jeu de démonstration du dépôt (aucune donnée de production)"
