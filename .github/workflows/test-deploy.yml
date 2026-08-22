@@ -1,0 +1,275 @@
+# Workflow GitHub Actions Hokhori — environnement de TEST.
+# Généré par setup-test-cicd.sh. Ne pas éditer à la main : les placeholders
+# du gabarit (slug, domaine de test, hôte, port, utilisateur) sont remplacés
+# par le script. Pour customiser, modifier le template source dans
+# hokhori-consulting/ops/templates/test-deploy.yml.template puis relancer.
+#
+# Rôle : tout changement est déployé et vérifié sur hokhori-build AVANT de
+# pouvoir être mergé sur main. Le pipeline de production (deploy.yml) ne se
+# déclenche que sur main, une fois la PR fusionnée.
+#
+# Chaîne : checks → image :test sur GHCR → déploiement sur hokhori-build →
+# migrations sur la base de test jetable → santé + preuve de protection.
+#
+# Variables de dépôt optionnelles :
+#   TEST_MIGRATE_CMD   commande de migration jouée sur le serveur de test,
+#                      dans ~/repos/nutrition, avec le .env.app chargé.
+#                      Vide = pas de migration.
+#   TEST_SEED_CMD      commande de jeu de démonstration, jouée UNIQUEMENT si la
+#                      base est vierge. Sans elle, l'environnement n'a aucun
+#                      compte et personne ne peut s'y connecter.
+#                      Pour repartir du jeu de démo :
+#                      `ssh hokhori-build hokhori-test-env reset-db nutrition`
+#                      puis relancer ce workflow.
+#   TEST_BUILD_ARGS    arguments de build de l'image de TEST, une CLE=valeur
+#                      par ligne. INDISPENSABLE pour les variables publiques
+#                      (NEXT_PUBLIC_*, VITE_*) : elles sont inlinées à la
+#                      COMPILATION, pas lues au démarrage du conteneur. Sans
+#                      elles, l'image de test embarque l'URL de production ou
+#                      une valeur de repli, et l'authentification refuse
+#                      l'origine (INVALID_ORIGIN).
+
+name: Test — nutrition.test.hokhori.be
+
+on:
+  # La PR est l'unite de changement : UN SEUL declencheur. Avec `push` ET
+  # `pull_request`, l'ouverture d'une PR lance deux runs a deux secondes
+  # d'intervalle qui deploient en parallele sur le meme environnement — l'un
+  # des deux echoue sur un conflit de nom de conteneur (constate le
+  # 2026-08-22 sur cigales).
+  #
+  # Pas de `paths-ignore` ici, et c'est delibere : ce workflow est un check
+  # REQUIS par la protection de branche. Un filtre de chemins empecherait le
+  # workflow de se declencher sur une PR qui ne touche que de la doc — GitHub
+  # attendrait alors un statut qui n'arrive jamais (« Expected — Waiting for
+  # status to be reported ») et la PR serait bloquee definitivement. Filtrer
+  # les chemins d'un check requis, c'est se fabriquer une impasse.
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  # Un seul environnement de test par app : une nouvelle poussée remplace la
+  # précédente, inutile de laisser tourner un déploiement périmé.
+  group: test-nutrition
+  cancel-in-progress: true
+
+env:
+  TEST_HOST: 162.55.218.116
+  TEST_PORT: '8822'
+  TEST_USER: administrator
+  REMOTE_REPO: /home/administrator/repos/nutrition
+  REMOTE_STACK: /home/administrator/stacks/nutrition-test
+  TEST_URL: https://nutrition.test.hokhori.be/
+
+jobs:
+
+  build:
+    name: Image de test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # GHCR exige un nom d'image en minuscules ; github.repository garde la
+      # casse d'origine (Hokhori/...).
+      - name: Nom d'image GHCR
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Tag `:test` = ce qui tourne sur l'environnement de test. Le tag par SHA
+      # permet de rejouer précisément une version depuis le serveur.
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          pull: true
+          tags: |
+            ${{ env.IMAGE }}:test
+            ${{ env.IMAGE }}:test-${{ github.sha }}
+          # Variables publiques : inlinées à la compilation. Le conteneur de
+          # test ne peut PAS les corriger au démarrage — elles doivent être
+          # justes ici, sinon l'app croit tourner sur une autre URL.
+          build-args: ${{ vars.TEST_BUILD_ARGS }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Déploiement sur l'environnement de test
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.TEST_DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          # echo (sans -n) ajoute la newline finale requise par OpenSSH
+          echo "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null \
+            || { echo "Clé SSH invalide (TEST_DEPLOY_SSH_KEY mal formatée)" >&2; exit 1; }
+          cat > ~/.ssh/config <<EOF
+          Host testvps
+            HostName ${{ env.TEST_HOST }}
+            Port ${{ env.TEST_PORT }}
+            User ${{ env.TEST_USER }}
+            IdentityFile ~/.ssh/id_ed25519
+            StrictHostKeyChecking accept-new
+            UserKnownHostsFile ~/.ssh/known_hosts
+          EOF
+          chmod 600 ~/.ssh/config
+          ssh-keyscan -p ${{ env.TEST_PORT }} ${{ env.TEST_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      # Le code est synchronisé sur le serveur : les migrations en dépendent.
+      - name: Rsync repo
+        run: |
+          rsync -az --delete \
+            --exclude='node_modules' \
+            --exclude='dist' \
+            --exclude='.output' \
+            --exclude='.next' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='.DS_Store' \
+            --exclude='*.log' \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='coverage' \
+            ./ testvps:${{ env.REMOTE_REPO }}/
+
+      # Login GHCR éphémère : aucun credential registre persistant sur la VM.
+      - name: Pull image & deploy
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: |
+          ssh testvps "set -e -o pipefail; \
+            export DOCKER_CONFIG=\$(mktemp -d); trap 'rm -rf \$DOCKER_CONFIG' EXIT; echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${GHCR_USER}' --password-stdin; \
+            cd ${{ env.REMOTE_STACK }}; \
+            docker compose pull app 2>&1 | tail -3; \
+            docker compose up -d 2>&1 | tail -5"
+
+      # Migrations sur la base de test jetable — jamais sur hokhori-pg, qui
+      # n'est pas joignable depuis cette machine (cf. serveur-build-test.md §5).
+      # DATABASE_URL est surchargee : .env.app porte la forme CONTENEUR
+      # (postgres-test:5432), alors que la migration tourne sur l'HOTE et doit
+      # passer par 127.0.0.1:15432. Confondre les deux fait echouer le
+      # deploiement de facon opaque (constate le 2026-08-21).
+      - name: Migrations sur la base de test
+        if: vars.TEST_MIGRATE_CMD != ''
+        env:
+          CMD: ${{ vars.TEST_MIGRATE_CMD }}
+        run: |
+          printf '%s\n' "$CMD" | ssh testvps "set -e; cd ${{ env.REMOTE_REPO }}; \
+            set -a; . ${{ env.REMOTE_STACK }}/.env.app; \
+            DATABASE_URL=\$(hokhori-testdb url nutrition); set +a; bash -s"
+
+      # Un environnement sans comptes n'est pas testable : on ne peut pas s'y
+      # connecter. Mais rejouer le seed a chaque deploiement detruirait l'etat
+      # cree a la main pendant une session — et un seed correctement ecrit
+      # refuse de tourner sur une base peuplee, ce qui ferait echouer le
+      # pipeline (dromo sort en code 1). D'ou : on seme une fois, quand la
+      # base est vierge.
+      - name: Jeu de démonstration (première fois seulement)
+        if: vars.TEST_SEED_CMD != ''
+        env:
+          CMD: ${{ vars.TEST_SEED_CMD }}
+        run: |
+          ROWS=$(ssh testvps "hokhori-testdb rowcount nutrition")
+          if [[ "$ROWS" -gt 0 ]]; then
+            echo "base déjà peuplée ($ROWS lignes) — seed ignoré"
+            echo "pour repartir à zéro : ssh hokhori-build hokhori-test-env reset-db nutrition"
+            exit 0
+          fi
+          echo "base vierge — application du jeu de démonstration"
+          printf '%s\n' "$CMD" | ssh testvps "set -e; cd ${{ env.REMOTE_REPO }}; \
+            set -a; . ${{ env.REMOTE_STACK }}/.env.app; \
+            DATABASE_URL=\$(hokhori-testdb url nutrition); set +a; bash -s"
+
+      # Santé mesurée en loopback, donc sans traverser le basic auth : on teste
+      # l'application, pas le reverse proxy.
+      - name: Attente de disponibilité
+        run: |
+          PORT=$(ssh testvps "grep -m1 '^WEB_PORT=' ${{ env.REMOTE_STACK }}/.env | cut -d= -f2")
+          for i in $(seq 1 30); do
+            HTTP=$(ssh testvps "curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:$PORT/ || echo 000")
+            if [[ "$HTTP" =~ ^(200|301|302|307|308|401|403)$ ]]; then
+              echo "application disponible après $((i*3))s (HTTP $HTTP)"
+              exit 0
+            fi
+            echo "tentative $i : HTTP $HTTP"
+            sleep 3
+          done
+          echo "application indisponible après 90s — journaux :"
+          ssh testvps "cd ${{ env.REMOTE_STACK }} && docker compose logs --tail 50 app"
+          exit 1
+
+      # Un code HTTP ne prouve pas qu'on peut se SERVIR de l'environnement.
+      # Cette étape rejoue un vrai geste applicatif — typiquement une connexion
+      # — depuis le serveur, en loopback (donc sans basic auth) mais AVEC
+      # l'en-tête Origin qu'enverrait un navigateur. C'est ce qui manquait le
+      # 2026-08-21 : la connexion passait en curl nu et échouait en navigateur
+      # (INVALID_ORIGIN), l'image ayant été compilée avec la mauvaise URL.
+      - name: Vérification applicative
+        if: vars.TEST_SMOKE_CMD != ''
+        env:
+          CMD: ${{ vars.TEST_SMOKE_CMD }}
+        run: |
+          PORT=$(ssh testvps "grep -m1 '^WEB_PORT=' ${{ env.REMOTE_STACK }}/.env | cut -d= -f2")
+          printf '%s\n' "$CMD" | ssh testvps \
+            "set -e; export WEB_PORT='$PORT' ORIGIN='https://nutrition.test.hokhori.be'; bash -s" \
+            || { echo "l'environnement répond mais n'est pas utilisable" >&2
+                 ssh testvps "cd ${{ env.REMOTE_STACK }} && docker compose logs --tail 40 app"
+                 exit 1; }
+          echo "geste applicatif validé"
+
+      # L'environnement de test ne doit jamais être ouvert : un 401 prouve que
+      # le basic auth est en place. Un 200 ici serait une régression de sécurité.
+      - name: Vérification de la protection publique
+        run: |
+          HTTP=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 ${{ env.TEST_URL }} || echo "000")
+          if [[ "$HTTP" != "401" ]]; then
+            echo "attendu 401 sur ${{ env.TEST_URL }}, obtenu $HTTP — l'environnement de test n'est pas protégé" >&2
+            exit 1
+          fi
+          echo "protection confirmée (HTTP 401)"
+
+      - name: Récapitulatif
+        if: always()
+        run: |
+          {
+            echo "### Environnement de test"
+            echo
+            echo "- URL : ${{ env.TEST_URL }} (basic auth, identifiant \`hokhori\`)"
+            echo "- Image : \`ghcr.io/${GITHUB_REPOSITORY,,}:test-${{ github.sha }}\`"
+            echo "- Base : \`nutrition_test\` sur le Postgres jetable de hokhori-build"
+            echo "- Comptes : ceux du jeu de démonstration du dépôt (aucune donnée de production)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519

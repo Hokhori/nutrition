@@ -1,0 +1,9 @@
+{
+  "_commentaire": "Comptes du jeu de démonstration appliqué sur l'environnement de test. À aligner sur le script de seed du dépôt. Aucune donnée de production, aucun vrai secret : ces valeurs sont déjà en clair dans le seed.",
+  "projet": "nutrition",
+  "slug": "nutrition",
+  "url": "https://nutrition.test.hokhori.be",
+  "basic_auth_user": "hokhori",
+  "comptes": [],
+  "notes": []
+}
