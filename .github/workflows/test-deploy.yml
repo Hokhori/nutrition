@@ -37,14 +37,15 @@ on:
   # d'intervalle qui deploient en parallele sur le meme environnement — l'un
   # des deux echoue sur un conflit de nom de conteneur (constate le
   # 2026-08-22 sur cigales).
+  #
+  # Pas de `paths-ignore` ici, et c'est delibere : ce workflow est un check
+  # REQUIS par la protection de branche. Un filtre de chemins empecherait le
+  # workflow de se declencher sur une PR qui ne touche que de la doc — GitHub
+  # attendrait alors un statut qui n'arrive jamais (« Expected — Waiting for
+  # status to be reported ») et la PR serait bloquee definitivement. Filtrer
+  # les chemins d'un check requis, c'est se fabriquer une impasse.
   pull_request:
     branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.gitignore'
-      - '.editorconfig'
-      - 'LICENSE'
   workflow_dispatch:
 
 concurrency:
