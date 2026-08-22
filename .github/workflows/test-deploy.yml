@@ -32,22 +32,25 @@
 name: Test — nutrition.test.hokhori.be
 
 on:
-  push:
-    branches-ignore: [main]
+  # La PR est l'unite de changement : UN SEUL declencheur. Avec `push` ET
+  # `pull_request`, l'ouverture d'une PR lance deux runs a deux secondes
+  # d'intervalle qui deploient en parallele sur le meme environnement — l'un
+  # des deux echoue sur un conflit de nom de conteneur (constate le
+  # 2026-08-22 sur cigales).
+  pull_request:
+    branches: [main]
     paths-ignore:
       - '**.md'
       - 'docs/**'
       - '.gitignore'
       - '.editorconfig'
       - 'LICENSE'
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
   # Un seul environnement de test par app : une nouvelle poussée remplace la
   # précédente, inutile de laisser tourner un déploiement périmé.
-  group: test-nutrition-${{ github.ref }}
+  group: test-nutrition
   cancel-in-progress: true
 
 env:
