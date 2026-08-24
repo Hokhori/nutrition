@@ -1,23 +1,11 @@
-# Workflow GitHub Actions Hokhori — VÉRIFICATIONS.
-# Généré par setup-test-cicd.sh. Ne pas éditer à la main : le gestionnaire de
-# paquets et la liste des étapes sont rendus depuis ce gabarit, en fonction de
-# ce que le dépôt sait réellement faire.
-#
-# Rôle : porte d'entrée du pipeline de test. Appelé par test-deploy.yml via
-# `workflow_call`, il refuse un lint ou un type cassé AVANT tout déploiement.
-# Sans lui, le pipeline construit et déploie n'importe quoi du moment que
-# l'image démarre.
-#
-# Les étapes absentes du dépôt ne sont pas générées : mieux vaut une porte
-# honnête sur trois vérifications qu'une porte qui prétend en faire cinq.
-
-name: CI
-
 on:
-  pull_request:
-    branches: [main]
-  # Appelé par le workflow de déploiement de test : rien n'est déployé sans
-  # que ces vérifications soient passées.
+  # Uniquement appelable. C'est `test-deploy.yml` qui l'appelle, sur chaque PR :
+  # rien n'est deploye sans que ces verifications passent.
+  #
+  # /!\ Ne PAS ajouter de declencheur `pull_request` en plus. Les deux runs
+  # partageraient le meme groupe de concurrence et le second annulerait le
+  # premier : chaque PR porterait un check « cancelled » permanent. Un check
+  # qu'on apprend a ignorer ne protege plus rien.
   workflow_call:
 
 concurrency:
