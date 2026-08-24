@@ -1,0 +1,44 @@
+on:
+  # Uniquement appelable. C'est `test-deploy.yml` qui l'appelle, sur chaque PR :
+  # rien n'est deploye sans que ces verifications passent.
+  #
+  # /!\ Ne PAS ajouter de declencheur `pull_request` en plus. Les deux runs
+  # partageraient le meme groupe de concurrence et le second annulerait le
+  # premier : chaque PR porterait un check « cancelled » permanent. Un check
+  # qu'on apprend a ignorer ne protege plus rien.
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifications:
+    name: Vérifications
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
+      - name: Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      # Installation stricte : le lockfile fait foi. Jamais de repli qui
+      # re-résout — un lock désynchronisé doit casser ici, pas produire une
+      # image dont personne ne sait de quoi elle est faite.
+      - name: Dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+      - name: Types
+        run: pnpm run typecheck
