@@ -1,0 +1,56 @@
+# Workflow GitHub Actions Hokhori — VÉRIFICATIONS.
+# Généré par setup-test-cicd.sh. Ne pas éditer à la main : le gestionnaire de
+# paquets et la liste des étapes sont rendus depuis ce gabarit, en fonction de
+# ce que le dépôt sait réellement faire.
+#
+# Rôle : porte d'entrée du pipeline de test. Appelé par test-deploy.yml via
+# `workflow_call`, il refuse un lint ou un type cassé AVANT tout déploiement.
+# Sans lui, le pipeline construit et déploie n'importe quoi du moment que
+# l'image démarre.
+#
+# Les étapes absentes du dépôt ne sont pas générées : mieux vaut une porte
+# honnête sur trois vérifications qu'une porte qui prétend en faire cinq.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  # Appelé par le workflow de déploiement de test : rien n'est déployé sans
+  # que ces vérifications soient passées.
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifications:
+    name: Vérifications
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.32.1
+
+      - name: Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      # Installation stricte : le lockfile fait foi. Jamais de repli qui
+      # re-résout — un lock désynchronisé doit casser ici, pas produire une
+      # image dont personne ne sait de quoi elle est faite.
+      - name: Dépendances
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+      - name: Types
+        run: pnpm run typecheck

@@ -63,11 +63,17 @@ env:
   TEST_URL: https://nutrition.test.hokhori.be/
 
 jobs:
+  checks:
+    name: Vérifications
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
 
   build:
     name: Image de test
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: checks
     permissions:
       contents: read
       packages: write
