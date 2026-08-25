@@ -2,15 +2,29 @@ on:
   # Uniquement appelable. C'est `test-deploy.yml` qui l'appelle, sur chaque PR :
   # rien n'est deploye sans que ces verifications passent.
   #
-  # /!\ Ne PAS ajouter de declencheur `pull_request` en plus. Les deux runs
-  # partageraient le meme groupe de concurrence et le second annulerait le
-  # premier : chaque PR porterait un check « cancelled » permanent. Un check
-  # qu'on apprend a ignorer ne protege plus rien.
+  # /!\ Ne PAS ajouter de declencheur `pull_request` en plus. Les verifications
+  # tourneraient deux fois par PR — une fois seules, une fois appelees — et les
+  # deux runs publieraient un check du meme nom. On finit par ne plus savoir
+  # lequel fait autorite, et un check qu'on apprend a ignorer ne protege plus
+  # rien.
   workflow_call:
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+# PAS de bloc `concurrency` ici, et c'est delibere.
+#
+# Un workflow appele n'a pas de ressource a lui : il tourne dans le run de son
+# appelant, et annuler ses jobs annule le run entier. La politique de
+# concurrence appartient donc a celui qui possede ce qu'on protege —
+# l'environnement de test pour `test-deploy.yml`, la pile de production pour
+# `deploy.yml`, qui declare d'ailleurs ne jamais annuler un deploiement en
+# cours.
+#
+# Un groupe pose ici s'appliquait aux DEUX appelants a la fois : sur `main` ils
+# se resolvaient tous les deux en `ci-refs/heads/main`. Un deploiement de test
+# lance a la main annulait alors la CI du deploiement de production en cours,
+# et le run de production avec — sa protection contournee par le workflow qu'il
+# appelle. La production continuait de tourner l'image precedente, et le seul
+# indice etait un run marque « cancelled » que personne ne regarde.
+# (Constate sur `dromo` le 2026-08-25.)
 
 jobs:
   verifications:
