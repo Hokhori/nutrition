@@ -152,15 +152,10 @@ jobs:
 
       # La base de test est jetable : un `hokhori-testdb reset` ou un environnement
       # jamais déployé la fait disparaître, et les migrations échouent alors avec
-      # `database "nutrition_test" does not exist`.
-      # `create` n'est pas idempotent (il échoue si la base existe) : on teste
-      # d'abord, puis on retest après un échec de `create` (run annulé, ou
-      # `hokhori-test-env create` en parallèle), le dernier `ls` tranche.
+      # `database "nutrition_test" does not exist`. `ensure` la crée si elle manque
+      # (idempotent) et échoue si Postgres de test est arrêté.
       - name: Base de test (création si absente)
-        run: |
-          ssh testvps "set -e; hokhori-testdb ls | grep -Fqx 'nutrition_test' \
-            || hokhori-testdb create nutrition \
-            || hokhori-testdb ls | grep -Fqx 'nutrition_test'"
+        run: ssh testvps "hokhori-testdb ensure nutrition"
 
       # Le code est synchronisé sur le serveur : les migrations en dépendent.
       - name: Rsync repo
