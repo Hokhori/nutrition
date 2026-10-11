@@ -150,6 +150,18 @@ jobs:
           chmod 600 ~/.ssh/config
           ssh-keyscan -p ${{ env.TEST_PORT }} ${{ env.TEST_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
+      # La base de test est jetable : un `hokhori-testdb reset` ou un environnement
+      # jamais déployé la fait disparaître, et les migrations échouent alors avec
+      # `database "nutrition_test" does not exist`.
+      # `create` n'est pas idempotent (il échoue si la base existe) : on teste
+      # d'abord, puis on retest après un échec de `create` (run annulé, ou
+      # `hokhori-test-env create` en parallèle), le dernier `ls` tranche.
+      - name: Base de test (création si absente)
+        run: |
+          ssh testvps "set -e; hokhori-testdb ls | grep -Fqx 'nutrition_test' \
+            || hokhori-testdb create nutrition \
+            || hokhori-testdb ls | grep -Fqx 'nutrition_test'"
+
       # Le code est synchronisé sur le serveur : les migrations en dépendent.
       - name: Rsync repo
         run: |
