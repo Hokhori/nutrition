@@ -121,5 +121,19 @@ jobs:
           ssh -i ~/.ssh/deploy_key -p "${{ secrets.DEPLOY_PORT }}" -o IdentitiesOnly=yes \
             "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
             "set -e; export DOCKER_CONFIG=\$(mktemp -d); trap 'rm -rf \$DOCKER_CONFIG' EXIT; echo '$GHCR_TOKEN' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin; \
-             cd '${{ vars.DEPLOY_STACK_DIR }}'; docker compose pull app; docker compose up -d; \
+             cd '${{ vars.DEPLOY_STACK_DIR }}'; if M=\$(command -v hokhori-docker-menage); then \$M pull; else docker compose pull app; fi; docker compose up -d; \
              docker compose ps"
+
+      # Ménage : seulement l'image que ce déploiement a remplacée (notée au pull)
+      # (hokhori-docker-menage, hokhori-consulting/ops/serveur-test), sous le
+      # verrou qui le tient à l'écart des pulls concurrents. Jamais `docker image
+      # prune` ici (incident du 2026-07-26). Un échec du ménage ne fait pas
+      # échouer le déploiement. ⚠ Ce job n'a pas encore de contrôle de santé :
+      # le ménage passe juste après `up -d`. Retour arrière : ghcr.io/hokhori/nutrition:<sha>.
+      - name: Ménage des anciennes images
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${{ secrets.DEPLOY_PORT }}" -o IdentitiesOnly=yes \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "command -v hokhori-docker-menage >/dev/null || exit 0; \
+             cd '${{ vars.DEPLOY_STACK_DIR }}' && hokhori-docker-menage apres-deploiement" \
+            || echo "::warning::ménage Docker en échec (sans effet sur le déploiement)"

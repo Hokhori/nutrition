@@ -183,7 +183,7 @@ jobs:
           ssh testvps "set -e -o pipefail; \
             export DOCKER_CONFIG=\$(mktemp -d); trap 'rm -rf \$DOCKER_CONFIG' EXIT; echo '${GHCR_TOKEN}' | docker login ghcr.io -u '${GHCR_USER}' --password-stdin; \
             cd ${{ env.REMOTE_STACK }}; \
-            docker compose pull app 2>&1 | tail -3; \
+            if M=\$(command -v hokhori-docker-menage); then \$M pull; else docker compose pull app; fi 2>&1 | tail -3; \
             docker compose up -d 2>&1 | tail -5"
 
       # Migrations sur la base de test jetable — jamais sur hokhori-pg, qui
@@ -281,6 +281,17 @@ jobs:
             exit 1
           fi
           echo "protection confirmée (HTTP 403)"
+
+      # Ménage : seulement l'image que ce déploiement a remplacée (notée au pull)
+      # (hokhori-docker-menage, hokhori-consulting/ops/serveur-test), sous le
+      # verrou qui le tient à l'écart des pulls concurrents. Jamais `docker image
+      # prune` ici (incident du 2026-07-26). Un échec du ménage ne fait pas
+      # échouer le déploiement.
+      - name: Ménage des anciennes images
+        run: |
+          ssh testvps "command -v hokhori-docker-menage >/dev/null || exit 0; \
+            cd ${{ env.REMOTE_STACK }} && hokhori-docker-menage apres-deploiement" \
+            || echo "::warning::ménage Docker en échec (sans effet sur le déploiement)"
 
       - name: Récapitulatif
         if: always()
