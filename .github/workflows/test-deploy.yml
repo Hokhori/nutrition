@@ -293,6 +293,19 @@ jobs:
             cd ${{ env.REMOTE_STACK }} && hokhori-docker-menage apres-deploiement" \
             || echo "::warning::ménage Docker en échec (sans effet sur le déploiement)"
 
+      # Les migrations et le seed installent les dépendances dans le dépôt
+      # synchronisé sur hokhori-build (npm ci, pnpm install). Elles ne servent plus
+      # une fois le déploiement fini : laissées là, ~1 Go par dépôt remplissait le
+      # disque (2026-10-17). Le prochain déploiement les réinstalle. À toutes les
+      # profondeurs : un monorepo (dromo) en a aussi sous apps/*. always() : un
+      # déploiement raté les laisse aussi. Le groupe de concurrence est l'app, donc
+      # aucun autre déploiement de ce dépôt ne s'en sert au même moment.
+      - name: Ménage des dépendances
+        if: always()
+        run: |
+          ssh testvps "find ${{ env.REMOTE_REPO }} -name node_modules -type d -prune -exec rm -rf {} +" \
+            || echo "::warning::ménage des dépendances en échec (sans effet sur le déploiement)"
+
       - name: Récapitulatif
         if: always()
         run: |

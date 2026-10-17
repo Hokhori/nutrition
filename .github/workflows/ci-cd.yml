@@ -124,12 +124,38 @@ jobs:
              cd '${{ vars.DEPLOY_STACK_DIR }}'; if M=\$(command -v hokhori-docker-menage); then \$M pull; else docker compose pull app; fi; docker compose up -d; \
              docker compose ps"
 
+      # Un run vert qui met en ligne une page cassée ne sert à rien : on attend le
+      # healthcheck du conteneur, puis la page de connexion publique (le même geste
+      # que TEST_SMOKE_CMD en test). Le ménage qui suit ne passe qu'après. Le
+      # healthcheck est dans le compose du serveur (DEPLOY_STACK_DIR) : wget /login
+      # toutes les 30 s, 40 s de démarrage ; d'où 180 s d'attente au plus.
+      - name: Vérification après déploiement
+        run: |
+          journaux() { ssh -i ~/.ssh/deploy_key -p "${{ secrets.DEPLOY_PORT }}" -o IdentitiesOnly=yes "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "cd '${{ vars.DEPLOY_STACK_DIR }}' && docker compose logs --tail 50 app" || true; }
+          for i in $(seq 1 60); do
+            STATUS=$(ssh -i ~/.ssh/deploy_key -p "${{ secrets.DEPLOY_PORT }}" -o IdentitiesOnly=yes "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+              "cd '${{ vars.DEPLOY_STACK_DIR }}' && docker compose ps --format '{{.Status}}' app" || echo "")
+            case "$STATUS" in
+              *'(healthy)'*) echo "conteneur sain après $((i*3)) s"; break ;;
+              *'(unhealthy)'*) echo "conteneur malade : $STATUS"; journaux; exit 1 ;;
+            esac
+            if [[ $i == 60 ]]; then echo "conteneur pas sain après 180 s : $STATUS"; journaux; exit 1; fi
+            sleep 3
+          done
+          for i in 1 2 3; do
+            if curl -sf --max-time 15 https://nutrition.hokhori.be/login | grep -qi password; then
+              echo "page de connexion servie"; exit 0
+            fi
+            sleep 5
+          done
+          echo "https://nutrition.hokhori.be/login ne sert pas la page de connexion"; journaux; exit 1
+
       # Ménage : seulement l'image que ce déploiement a remplacée (notée au pull)
       # (hokhori-docker-menage, hokhori-consulting/ops/serveur-test), sous le
       # verrou qui le tient à l'écart des pulls concurrents. Jamais `docker image
       # prune` ici (incident du 2026-07-26). Un échec du ménage ne fait pas
-      # échouer le déploiement. ⚠ Ce job n'a pas encore de contrôle de santé :
-      # le ménage passe juste après `up -d`. Retour arrière : ghcr.io/hokhori/nutrition:<sha>.
+      # échouer le déploiement.
       - name: Ménage des anciennes images
         run: |
           ssh -i ~/.ssh/deploy_key -p "${{ secrets.DEPLOY_PORT }}" -o IdentitiesOnly=yes \
